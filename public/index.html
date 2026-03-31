@@ -146,6 +146,37 @@
     margin-bottom: 32px;
   }
 
+  /* Token notice */
+  .token-notice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    color: var(--cream-dim);
+    line-height: 1.7;
+    display: none;
+  }
+  .token-notice.visible { display: block; }
+  .token-notice a { color: var(--amber); }
+
+  /* Search token row */
+  .search-token-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .field-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    min-width: 80px;
+  }
+
   /* Search */
   .search-bar {
     display: flex;
@@ -220,11 +251,36 @@
   .result-card:hover { border-color: var(--amber-dim); background: var(--surface2); }
   .result-card.added { border-color: var(--green); opacity: 0.7; cursor: default; }
 
-  .rc-left { flex: 1; min-width: 0; }
+  .rc-left { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: center; }
+  .rc-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--surface3);
+    border: 1px solid var(--border-subtle);
+  }
+  .rc-thumb-placeholder {
+    width: 52px;
+    height: 52px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: var(--surface3);
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--muted);
+  }
+  .rc-info { flex: 1; min-width: 0; }
   .rc-title { font-size: 15px; font-weight: 500; color: var(--cream); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rc-meta { font-size: 11px; color: var(--cream-dim); margin-bottom: 6px; letter-spacing: 0.03em; }
   .rc-tracks { font-size: 11px; color: var(--muted); line-height: 1.5; }
-  .rc-right { flex-shrink: 0; }
+  .rc-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .rc-discogs-link { font-size: 10px; color: var(--amber-dim); letter-spacing: 0.04em; text-decoration: none; }
+  .rc-discogs-link:hover { color: var(--amber); }
   .tag {
     display: inline-block;
     padding: 3px 10px;
@@ -350,7 +406,6 @@
   .discogs-setup p { font-size: 12px; color: var(--cream-dim); line-height: 1.7; margin-bottom: 14px; }
   .discogs-setup a { color: var(--amber); }
   .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-  .field-label { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; min-width: 80px; }
 
   .result-list { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
   .result-row {
@@ -372,6 +427,25 @@
   .pill.failed { background: rgba(192,74,42,0.1); color: var(--red); border: 1px solid rgba(192,74,42,0.25); }
   .pill.not_found { background: var(--surface3); color: var(--muted); border: 1px solid var(--border-subtle); }
   .pill.searching { background: var(--amber-glow); color: var(--amber); border: 1px solid var(--border); }
+
+  .tag.enriching {
+    border-color: var(--amber-dim);
+    color: var(--amber);
+    background: var(--amber-glow);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  td.bpm-cell, td.key-cell {
+    color: var(--amber);
+    font-size: 11px;
+  }
+  td.enriching-cell {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
 
   .divider { border: none; border-top: 1px solid var(--border-subtle); margin: 28px 0; }
 
@@ -400,9 +474,20 @@
   <!-- SEARCH TAB -->
   <div class="section active" id="tab-search">
     <h1 class="section-title">Search records</h1>
-    <p class="section-sub">POWERED BY CLAUDE — SEARCH BY ARTIST, ALBUM, OR TRACK</p>
+    <p class="section-sub">POWERED BY DISCOGS — SEARCH BY ARTIST, ALBUM, OR TRACK</p>
+
+    <div id="search-token-notice" class="token-notice">
+      A Discogs token is required to search. Enter it below, or add <code>DISCOGS_TOKEN</code> to your <code>.env</code> file.
+      Get one at <a href="https://www.discogs.com/settings/developers" target="_blank">discogs.com/settings/developers</a>.
+    </div>
+
+    <div class="field-row" style="margin-bottom:16px">
+      <span class="field-label">Token</span>
+      <input type="password" id="search-token" placeholder="Discogs personal access token (or set in .env)" />
+    </div>
+
     <div class="search-bar">
-      <input type="text" id="search-input" placeholder="e.g. Massive Attack — Mezzanine" />
+      <input type="text" id="search-input" placeholder="e.g. Massive Attack Mezzanine" />
       <button class="btn primary" id="search-btn" onclick="doSearch()">Search</button>
     </div>
     <div class="status-line" id="search-status"></div>
@@ -431,7 +516,7 @@
     <div class="export-grid">
       <div class="export-card">
         <h3>Excel spreadsheet</h3>
-        <p>Full metadata for every track — artist, album, title, year, genre, label, BPM, key. Opens directly in Excel or Numbers.</p>
+        <p>Full metadata for every track — artist, album, title, year, genre, label, duration. Opens directly in Excel or Numbers.</p>
         <button class="btn primary" onclick="exportXLSX()">Download .xlsx</button>
       </div>
       <div class="export-card">
@@ -480,6 +565,23 @@
 <script>
 let collection = [];
 
+// ── Token helpers ────────────────────────────────────────
+// Sync the search tab token with the discogs tab token so
+// the user only needs to enter it once.
+function getToken() {
+  return document.getElementById('search-token').value.trim()
+      || document.getElementById('discogs-token').value.trim();
+}
+
+document.getElementById('search-token').addEventListener('input', () => {
+  const v = document.getElementById('search-token').value;
+  if (v) document.getElementById('discogs-token').value = v;
+});
+document.getElementById('discogs-token').addEventListener('input', () => {
+  const v = document.getElementById('discogs-token').value;
+  if (v) document.getElementById('search-token').value = v;
+});
+
 // ── Navigation ──────────────────────────────────────────
 function switchTab(t) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
@@ -499,23 +601,32 @@ document.getElementById('search-input').addEventListener('keydown', e => { if (e
 async function doSearch() {
   const q = document.getElementById('search-input').value.trim();
   if (!q) return;
+
+  const token = getToken();
+  const notice = document.getElementById('search-token-notice');
+  if (!token) {
+    notice.classList.add('visible');
+    return;
+  }
+  notice.classList.remove('visible');
+
   const btn = document.getElementById('search-btn');
   const status = document.getElementById('search-status');
   btn.disabled = true;
   status.className = 'status-line loading';
-  status.textContent = 'Searching';
+  status.textContent = 'Searching Discogs';
   document.getElementById('results-area').innerHTML = '';
 
   try {
     const res = await fetch('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q })
+      body: JSON.stringify({ query: q, token })
     });
     const results = await res.json();
     if (results.error) throw new Error(results.error);
     status.className = 'status-line';
-    status.textContent = `${results.length} result${results.length !== 1 ? 's' : ''} found`;
+    status.textContent = `${results.length} result${results.length !== 1 ? 's' : ''} found on Discogs`;
     renderResults(results);
   } catch (e) {
     status.className = 'status-line';
@@ -527,18 +638,28 @@ async function doSearch() {
 function renderResults(results) {
   const area = document.getElementById('results-area');
   area.innerHTML = '';
+  if (!results.length) {
+    area.innerHTML = '<div class="empty-state"><span class="big">♪</span>No vinyl releases found. Try a different search.</div>';
+    return;
+  }
   results.forEach(r => {
-    const trackList = (r.tracks || []).slice(0, 5).map(t => t.title).join(' · ');
+    const trackList = (r.tracks || []).slice(0, 6).map(t => t.position ? `${t.position}. ${t.title}` : t.title).join(' · ');
     const card = document.createElement('div');
     card.className = 'result-card';
-    card.dataset.id = r.artist + r.album;
+    const thumbHtml = r.thumb
+      ? `<img class="rc-thumb" src="${esc(r.thumb)}" alt="" loading="lazy" />`
+      : `<div class="rc-thumb-placeholder">♪</div>`;
     card.innerHTML = `
       <div class="rc-left">
-        <div class="rc-title">${esc(r.artist)} — ${esc(r.album)} <span style="font-weight:300;color:var(--muted)">(${r.year || '—'})</span></div>
-        <div class="rc-meta">${esc(r.genre || '')} · ${esc(r.label || '')}</div>
-        <div class="rc-tracks">${esc(trackList)}</div>
+        ${thumbHtml}
+        <div class="rc-info">
+          <div class="rc-title">${esc(r.artist)} — ${esc(r.album)} <span style="font-weight:300;color:var(--muted)">(${r.year || '—'})</span></div>
+          <div class="rc-meta">${esc(r.genre || '')}${r.label ? ' · ' + esc(r.label) : ''}</div>
+          <div class="rc-tracks">${esc(trackList) || '<span style="color:var(--muted)">No tracklist available</span>'}</div>
+        </div>
       </div>
       <div class="rc-right">
+        ${r.discogsUrl ? `<a class="rc-discogs-link" href="${esc(r.discogsUrl)}" target="_blank" onclick="event.stopPropagation()">↗ Discogs</a>` : ''}
         <span class="tag" id="tag-${btoa(r.artist+r.album).slice(0,8)}">+ Add</span>
       </div>`;
     card.onclick = () => addAlbum(r, card);
@@ -548,15 +669,97 @@ function renderResults(results) {
 
 function addAlbum(r, card) {
   if (card.classList.contains('added')) return;
-  (r.tracks || []).forEach(t => {
-    collection.push({ artist: r.artist || '', album: r.album || '', title: t.title || '', year: r.year || '', genre: r.genre || '', label: r.label || '', bpm: t.bpm || '', key: t.key || '' });
-  });
+
+  const tag = card.querySelector('.tag');
+  tag.textContent = '⟳ Enriching…';
+  tag.className = 'tag enriching';
   card.classList.add('added');
   card.onclick = null;
-  const tag = card.querySelector('.tag');
-  tag.textContent = '✓ Added';
-  tag.className = 'tag added';
+
+  const startIndex = collection.length;
+
+  if (r.tracks && r.tracks.length) {
+    r.tracks.forEach(t => {
+      collection.push({
+        artist: r.artist || '',
+        album: r.album || '',
+        title: t.title || '',
+        year: r.year || '',
+        genre: r.genre || '',
+        label: r.label || '',
+        duration: t.duration || '',
+        position: t.position || '',
+        bpm: '',
+        key: '',
+        discogsId: r.discogsId || '',
+        _enriching: true
+      });
+    });
+  } else {
+    collection.push({
+      artist: r.artist || '',
+      album: r.album || '',
+      title: '—',
+      year: r.year || '',
+      genre: r.genre || '',
+      label: r.label || '',
+      duration: '',
+      position: '',
+      bpm: '',
+      key: '',
+      discogsId: r.discogsId || '',
+      _enriching: true
+    });
+  }
+
   updateCount();
+
+  // Kick off Claude enrichment in background
+  enrichAlbum(r, startIndex, tag);
+}
+
+async function enrichAlbum(r, startIndex, tagEl) {
+  const tracks = r.tracks && r.tracks.length
+    ? r.tracks
+    : [{ title: r.album }];
+
+  try {
+    const res = await fetch('/api/enrich', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artist: r.artist, album: r.album, tracks })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    (data.tracks || []).forEach((enriched, i) => {
+      const idx = startIndex + i;
+      if (collection[idx]) {
+        collection[idx].bpm = enriched.bpm || '';
+        collection[idx].key = enriched.key || '';
+        collection[idx]._enriching = false;
+      }
+    });
+
+    tagEl.textContent = '✓ Added';
+    tagEl.className = 'tag added';
+
+    // Refresh collection table if it's visible
+    if (document.getElementById('tab-collection').classList.contains('active')) {
+      renderCollection();
+    }
+  } catch (e) {
+    console.warn('Enrichment failed:', e.message);
+    // Mark tracks as no longer enriching even on failure
+    for (let i = startIndex; i < startIndex + tracks.length; i++) {
+      if (collection[i]) collection[i]._enriching = false;
+    }
+    tagEl.textContent = '✓ Added';
+    tagEl.className = 'tag added';
+    if (document.getElementById('tab-collection').classList.contains('active')) {
+      renderCollection();
+    }
+  }
 }
 
 // ── Collection ───────────────────────────────────────────
@@ -566,7 +769,14 @@ function renderCollection() {
     area.innerHTML = '<div class="empty-state"><span class="big">♪</span>No tracks yet. Search and add some records.</div>';
     return;
   }
-  const rows = collection.map((t, i) => `
+  const rows = collection.map((t, i) => {
+    const bpmCell = t._enriching
+      ? `<td class="enriching-cell">…</td>`
+      : `<td class="bpm-cell">${t.bpm || '—'}</td>`;
+    const keyCell = t._enriching
+      ? `<td class="enriching-cell">…</td>`
+      : `<td class="key-cell">${esc(t.key) || '—'}</td>`;
+    return `
     <tr>
       <td title="${esc(t.artist)}">${esc(t.artist)}</td>
       <td title="${esc(t.album)}">${esc(t.album)}</td>
@@ -574,16 +784,20 @@ function renderCollection() {
       <td>${t.year}</td>
       <td>${esc(t.genre)}</td>
       <td title="${esc(t.label)}">${esc(t.label)}</td>
-      <td>${t.bpm}</td>
-      <td>${esc(t.key)}</td>
+      <td>${esc(t.position)}</td>
+      <td>${esc(t.duration)}</td>
+      ${bpmCell}
+      ${keyCell}
       <td><button class="del-btn" onclick="removeTrack(${i})">×</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   area.innerHTML = `
     <div class="table-container">
       <table>
         <thead><tr>
           <th>Artist</th><th>Album</th><th>Track</th><th>Year</th>
-          <th>Genre</th><th>Label</th><th>BPM</th><th>Key</th><th></th>
+          <th>Genre</th><th>Label</th><th>Pos</th><th>Duration</th>
+          <th>BPM</th><th>Key</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -606,7 +820,7 @@ function renderExport() {
     <div class="dl-album">${esc(t.album)}</div>
     <div class="dl-divider"></div>
     <div class="dl-track">${esc(t.title)}</div>
-    <div class="dl-meta"><span>BPM: ${t.bpm}</span><span>Key: ${esc(t.key)}</span><span>${t.year}</span></div>
+    <div class="dl-meta"><span>BPM: ${t.bpm || '…'}</span><span>Key: ${esc(t.key) || '…'}</span><span>${esc(t.position)}</span><span>${t.year}</span></div>
     <div class="dl-meta"><span>${esc(t.genre)}</span><span>${esc(t.label)}</span></div>
   </div>`;
 }
@@ -615,9 +829,11 @@ function exportXLSX() {
   if (!collection.length) return alert('No tracks to export.');
   const ws = XLSX.utils.json_to_sheet(collection.map(t => ({
     'Artist': t.artist, 'Album': t.album, 'Track Title': t.title,
-    'Year': t.year, 'Genre': t.genre, 'Label': t.label, 'BPM': t.bpm, 'Key': t.key
+    'Year': t.year, 'Genre': t.genre, 'Label': t.label,
+    'Position': t.position, 'Duration': t.duration,
+    'BPM': t.bpm, 'Key': t.key
   })));
-  ws['!cols'] = [22,26,32,7,14,22,7,12].map(wch => ({ wch }));
+  ws['!cols'] = [22,26,32,7,14,22,7,10,7,12].map(wch => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Vinyl Collection');
   XLSX.writeFile(wb, 'vinyl_collection.xlsx');
@@ -625,9 +841,9 @@ function exportXLSX() {
 
 function exportDYMO() {
   if (!collection.length) return alert('No tracks to export.');
-  const headers = ['Artist', 'Album', 'Track Title', 'Year', 'Genre', 'Label', 'BPM', 'Key'];
+  const headers = ['Artist', 'Album', 'Track Title', 'Year', 'Genre', 'Label', 'Position', 'Duration', 'BPM', 'Key'];
   const rows = collection.map(t =>
-    [t.artist, t.album, t.title, t.year, t.genre, t.label, t.bpm, t.key]
+    [t.artist, t.album, t.title, t.year, t.genre, t.label, t.position, t.duration, t.bpm, t.key]
       .map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(','));
   const blob = new Blob([[headers.join(','), ...rows].join('\r\n')], { type: 'text/csv' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dymo_vinyl_labels.csv'; a.click();
@@ -637,7 +853,7 @@ function exportDYMO() {
 async function exportToDiscogs(mode) {
   if (!collection.length) return alert('No tracks to export.');
   const username = document.getElementById('discogs-username').value.trim();
-  const token = document.getElementById('discogs-token').value.trim();
+  const token = getToken();
   if (!username || !token) return alert('Please enter your Discogs username and token.');
 
   const status = document.getElementById('discogs-status');
@@ -646,7 +862,6 @@ async function exportToDiscogs(mode) {
   status.textContent = 'Exporting to Discogs';
   resultsList.innerHTML = '';
 
-  // Deduplicate by album
   const albums = [...new Map(collection.map(t => [t.artist + t.album, t])).values()];
   albums.forEach(a => {
     const row = document.createElement('div');
@@ -667,13 +882,10 @@ async function exportToDiscogs(mode) {
     const added = (data.results || []).filter(r => r.status === 'added').length;
     status.textContent = `Done — ${added} of ${albums.length} album${albums.length !== 1 ? 's' : ''} added to Discogs ${mode}.`;
 
-    // Update individual rows
     (data.results || []).forEach(r => {
-      const key = btoa(r.album).slice(0, 10);
-      // Find matching row
       resultsList.querySelectorAll('.result-row').forEach(row => {
         const albumText = row.querySelector('span')?.textContent || '';
-        if (r.album.includes(albumText.split(' — ')[1]?.trim() || '')) {
+        if (albumText.includes(r.album.split(' - ')[1]?.trim() || '')) {
           const pill = row.querySelector('.pill');
           const labels = { added: 'added', failed: 'failed', not_found: 'not found', error: 'error' };
           pill.className = 'pill ' + (r.status === 'added' ? 'added' : 'failed');
