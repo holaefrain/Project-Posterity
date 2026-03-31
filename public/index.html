@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinyl Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0c0a;
+    --surface: #17140f;
+    --surface2: #211d17;
+    --surface3: #2c2820;
+    --amber: #c8922a;
+    --amber-dim: #8a611a;
+    --amber-glow: rgba(200,146,42,0.12);
+    --cream: #f0e6cc;
+    --cream-dim: #a89570;
+    --muted: #5c5040;
+    --border: rgba(200,146,42,0.18);
+    --border-subtle: rgba(255,255,255,0.06);
+    --red: #c04a2a;
+    --green: #4a9a6a;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Playfair Display', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--mono);
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.6;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    background: rgba(14,12,10,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-disc {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--amber) 0%, #5c3a0a 20%, var(--amber) 40%, #3a220a 60%, var(--amber) 80%, #5c3a0a 100%);
+    position: relative;
+    animation: spin 8s linear infinite;
+  }
+  .logo-disc::after {
+    content: '';
+    position: absolute;
+    inset: 11px;
+    background: var(--bg);
+    border-radius: 50%;
+    border: 1px solid var(--amber-dim);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .logo-name {
+    font-family: var(--serif);
+    font-size: 20px;
+    color: var(--cream);
+    letter-spacing: 0.02em;
+  }
+  .logo-name em {
+    color: var(--amber);
+    font-style: italic;
+  }
+
+  nav { display: flex; gap: 4px; }
+  .nav-btn {
+    padding: 6px 18px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { color: var(--cream-dim); }
+  .nav-btn.active { color: var(--amber); background: var(--amber-glow); }
+  .nav-count {
+    display: inline-block;
+    background: var(--amber);
+    color: var(--bg);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  main { padding: 40px; max-width: 1100px; margin: 0 auto; }
+
+  .section { display: none; animation: fadeIn 0.25s ease; }
+  .section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--cream);
+  }
+  .section-sub {
+    font-size: 12px;
+    color: var(--cream-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 32px;
+  }
+
+  /* Search */
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  input[type="text"], input[type="password"] {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--cream);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  input[type="text"]:focus, input[type="password"]:focus { border-color: var(--amber); }
+  input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 10px 22px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--amber);
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .btn:hover { background: var(--amber-glow); border-color: var(--amber); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+  .btn.primary { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+  .btn.primary:hover { background: #d9a33a; }
+  .btn.danger { color: var(--red); border-color: rgba(192,74,42,0.3); }
+  .btn.danger:hover { background: rgba(192,74,42,0.1); }
+  .btn.success { color: var(--green); border-color: rgba(74,154,106,0.3); }
+  .btn.success:hover { background: rgba(74,154,106,0.1); }
+
+  .status-line {
+    font-size: 12px;
+    color: var(--cream-dim);
+    letter-spacing: 0.04em;
+    margin-bottom: 20px;
+    min-height: 18px;
+  }
+  .status-line.loading::after { content: ''; animation: dots 1.2s infinite; }
+  @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} }
+
+  /* Result cards */
+  .results-grid { display: flex; flex-direction: column; gap: 10px; }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .result-card:hover { border-color: var(--amber-dim); background: var(--surface2); }
+  .result-card.added { border-color: var(--green); opacity: 0.7; cursor: default; }
+
+  .rc-left { flex: 1; min-width: 0; }
+  .rc-title { font-size: 15px; font-weight: 500; color: var(--cream); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc-meta { font-size: 11px; color: var(--cream-dim); margin-bottom: 6px; letter-spacing: 0.03em; }
+  .rc-tracks { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .rc-right { flex-shrink: 0; }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border: 1px solid var(--border-subtle);
+    color: var(--cream-dim);
+    background: var(--surface2);
+  }
+  .tag.added { border-color: rgba(74,154,106,0.4); color: var(--green); background: rgba(74,154,106,0.08); }
+
+  /* Collection table */
+  .table-container {
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    overflow: auto;
+    margin-bottom: 20px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--cream);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface2); }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    font-family: var(--mono);
+  }
+  .del-btn:hover { color: var(--red); background: rgba(192,74,42,0.1); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+  }
+  .empty-state .big { font-family: var(--serif); font-size: 40px; display: block; margin-bottom: 12px; opacity: 0.3; }
+
+  /* Export section */
+  .export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .export-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .export-card h3 { font-size: 14px; font-weight: 500; color: var(--amber); margin-bottom: 8px; letter-spacing: 0.05em; }
+  .export-card p { font-size: 12px; color: var(--cream-dim); line-height: 1.7; margin-bottom: 16px; }
+
+  /* DYMO preview */
+  .dymo-preview-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .dymo-preview-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .dymo-label {
+    width: 380px;
+    height: 152px;
+    border: 1.5px dashed var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: #fff;
+    color: #111;
+    font-family: 'Arial', sans-serif;
+    margin: 0 auto;
+  }
+  .dymo-label .dl-artist { font-size: 14px; font-weight: 700; }
+  .dymo-label .dl-album { font-size: 12px; }
+  .dymo-label .dl-track { font-size: 11px; color: #555; }
+  .dymo-label .dl-meta { font-size: 10px; color: #777; display: flex; gap: 12px; }
+  .dymo-label .dl-divider { height: 1px; background: #ddd; margin: 3px 0; }
+
+  /* Discogs section */
+  .discogs-setup {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .discogs-setup h3 { font-size: 14px; font-weight: 500; color: var(--cream); margin-bottom: 6px; }
+  .discogs-setup p { font-size: 12px; color: var(--cream-dim); line-height: 1.7; margin-bottom: 14px; }
+  .discogs-setup a { color: var(--amber); }
+  .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .field-label { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; min-width: 80px; }
+
+  .result-list { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--surface2);
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .result-row .pill {
+    font-size: 10px;
+    padding: 2px 10px;
+    border-radius: 99px;
+    letter-spacing: 0.06em;
+  }
+  .pill.added { background: rgba(74,154,106,0.15); color: var(--green); border: 1px solid rgba(74,154,106,0.3); }
+  .pill.failed { background: rgba(192,74,42,0.1); color: var(--red); border: 1px solid rgba(192,74,42,0.25); }
+  .pill.not_found { background: var(--surface3); color: var(--muted); border: 1px solid var(--border-subtle); }
+  .pill.searching { background: var(--amber-glow); color: var(--amber); border: 1px solid var(--border); }
+
+  .divider { border: none; border-top: 1px solid var(--border-subtle); margin: 28px 0; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-disc"></div>
+    <span class="logo-name"><em>Vinyl</em> Manager</span>
+  </div>
+  <nav>
+    <button class="nav-btn active" data-tab="search" onclick="switchTab('search')">Search</button>
+    <button class="nav-btn" data-tab="collection" onclick="switchTab('collection')">
+      Collection <span class="nav-count" id="nav-count">0</span>
+    </button>
+    <button class="nav-btn" data-tab="export" onclick="switchTab('export')">Export</button>
+    <button class="nav-btn" data-tab="discogs" onclick="switchTab('discogs')">Discogs</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- SEARCH TAB -->
+  <div class="section active" id="tab-search">
+    <h1 class="section-title">Search records</h1>
+    <p class="section-sub">POWERED BY CLAUDE — SEARCH BY ARTIST, ALBUM, OR TRACK</p>
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="e.g. Massive Attack — Mezzanine" />
+      <button class="btn primary" id="search-btn" onclick="doSearch()">Search</button>
+    </div>
+    <div class="status-line" id="search-status"></div>
+    <div class="results-grid" id="results-area"></div>
+  </div>
+
+  <!-- COLLECTION TAB -->
+  <div class="section" id="tab-collection">
+    <h1 class="section-title">My collection</h1>
+    <p class="section-sub">ALL TRACKS — CLICK × TO REMOVE</p>
+    <div id="collection-area">
+      <div class="empty-state"><span class="big">♪</span>No tracks yet. Search and add some records.</div>
+    </div>
+  </div>
+
+  <!-- EXPORT TAB -->
+  <div class="section" id="tab-export">
+    <h1 class="section-title">Export</h1>
+    <p class="section-sub">DOWNLOAD YOUR COLLECTION OR PRINT DYMO LABELS</p>
+
+    <div class="dymo-preview-wrap">
+      <div class="dymo-preview-label">Label preview — DYMO 30323 (2⅛″ × 4″)</div>
+      <div id="label-preview"></div>
+    </div>
+
+    <div class="export-grid">
+      <div class="export-card">
+        <h3>Excel spreadsheet</h3>
+        <p>Full metadata for every track — artist, album, title, year, genre, label, BPM, key. Opens directly in Excel or Numbers.</p>
+        <button class="btn primary" onclick="exportXLSX()">Download .xlsx</button>
+      </div>
+      <div class="export-card">
+        <h3>DYMO labels CSV</h3>
+        <p>One row per track, formatted for DYMO Connect 30323. Import via <em>File → Import Data</em> in DYMO Connect.</p>
+        <button class="btn" onclick="exportDYMO()">Download labels .csv</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCOGS TAB -->
+  <div class="section" id="tab-discogs">
+    <h1 class="section-title">Discogs export</h1>
+    <p class="section-sub">ADD YOUR VINYL TO YOUR DISCOGS WANTLIST OR COLLECTION</p>
+
+    <div class="discogs-setup">
+      <h3>Setup</h3>
+      <p>
+        You need a Discogs personal access token. Get one at
+        <a href="https://www.discogs.com/settings/developers" target="_blank">discogs.com/settings/developers</a>
+        → "Generate new token".<br>
+        You can also add <code>DISCOGS_TOKEN</code> and <code>DISCOGS_USERNAME</code> to your <code>.env</code> file to skip this step.
+      </p>
+      <div class="field-row">
+        <span class="field-label">Username</span>
+        <input type="text" id="discogs-username" placeholder="your_discogs_username" style="max-width:260px" />
+      </div>
+      <div class="field-row">
+        <span class="field-label">Token</span>
+        <input type="password" id="discogs-token" placeholder="your_personal_access_token" style="max-width:260px" />
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-bottom:20px">
+      <button class="btn success" onclick="exportToDiscogs('wantlist')">Add to Wantlist</button>
+      <button class="btn" onclick="exportToDiscogs('collection')">Add to Collection</button>
+    </div>
+
+    <div class="status-line" id="discogs-status"></div>
+    <div class="result-list" id="discogs-results"></div>
+  </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let collection = [];
+
+// ── Navigation ──────────────────────────────────────────
+function switchTab(t) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + t).classList.add('active');
+  if (t === 'export') renderExport();
+  if (t === 'collection') renderCollection();
+}
+
+function updateCount() {
+  document.getElementById('nav-count').textContent = collection.length;
+}
+
+// ── Search ───────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('search-btn');
+  const status = document.getElementById('search-status');
+  btn.disabled = true;
+  status.className = 'status-line loading';
+  status.textContent = 'Searching';
+  document.getElementById('results-area').innerHTML = '';
+
+  try {
+    const res = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q })
+    });
+    const results = await res.json();
+    if (results.error) throw new Error(results.error);
+    status.className = 'status-line';
+    status.textContent = `${results.length} result${results.length !== 1 ? 's' : ''} found`;
+    renderResults(results);
+  } catch (e) {
+    status.className = 'status-line';
+    status.textContent = 'Error: ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+function renderResults(results) {
+  const area = document.getElementById('results-area');
+  area.innerHTML = '';
+  results.forEach(r => {
+    const trackList = (r.tracks || []).slice(0, 5).map(t => t.title).join(' · ');
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.dataset.id = r.artist + r.album;
+    card.innerHTML = `
+      <div class="rc-left">
+        <div class="rc-title">${esc(r.artist)} — ${esc(r.album)} <span style="font-weight:300;color:var(--muted)">(${r.year || '—'})</span></div>
+        <div class="rc-meta">${esc(r.genre || '')} · ${esc(r.label || '')}</div>
+        <div class="rc-tracks">${esc(trackList)}</div>
+      </div>
+      <div class="rc-right">
+        <span class="tag" id="tag-${btoa(r.artist+r.album).slice(0,8)}">+ Add</span>
+      </div>`;
+    card.onclick = () => addAlbum(r, card);
+    area.appendChild(card);
+  });
+}
+
+function addAlbum(r, card) {
+  if (card.classList.contains('added')) return;
+  (r.tracks || []).forEach(t => {
+    collection.push({ artist: r.artist || '', album: r.album || '', title: t.title || '', year: r.year || '', genre: r.genre || '', label: r.label || '', bpm: t.bpm || '', key: t.key || '' });
+  });
+  card.classList.add('added');
+  card.onclick = null;
+  const tag = card.querySelector('.tag');
+  tag.textContent = '✓ Added';
+  tag.className = 'tag added';
+  updateCount();
+}
+
+// ── Collection ───────────────────────────────────────────
+function renderCollection() {
+  const area = document.getElementById('collection-area');
+  if (!collection.length) {
+    area.innerHTML = '<div class="empty-state"><span class="big">♪</span>No tracks yet. Search and add some records.</div>';
+    return;
+  }
+  const rows = collection.map((t, i) => `
+    <tr>
+      <td title="${esc(t.artist)}">${esc(t.artist)}</td>
+      <td title="${esc(t.album)}">${esc(t.album)}</td>
+      <td title="${esc(t.title)}">${esc(t.title)}</td>
+      <td>${t.year}</td>
+      <td>${esc(t.genre)}</td>
+      <td title="${esc(t.label)}">${esc(t.label)}</td>
+      <td>${t.bpm}</td>
+      <td>${esc(t.key)}</td>
+      <td><button class="del-btn" onclick="removeTrack(${i})">×</button></td>
+    </tr>`).join('');
+  area.innerHTML = `
+    <div class="table-container">
+      <table>
+        <thead><tr>
+          <th>Artist</th><th>Album</th><th>Track</th><th>Year</th>
+          <th>Genre</th><th>Label</th><th>BPM</th><th>Key</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn danger" onclick="clearAll()">Clear all</button>
+    </div>`;
+}
+
+function removeTrack(i) { collection.splice(i, 1); updateCount(); renderCollection(); }
+function clearAll() { if (confirm('Clear all tracks?')) { collection = []; updateCount(); renderCollection(); } }
+
+// ── Export ───────────────────────────────────────────────
+function renderExport() {
+  const prev = document.getElementById('label-preview');
+  if (!collection.length) { prev.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Add tracks to see label preview</div>'; return; }
+  const t = collection[0];
+  prev.innerHTML = `<div class="dymo-label">
+    <div class="dl-artist">${esc(t.artist)}</div>
+    <div class="dl-album">${esc(t.album)}</div>
+    <div class="dl-divider"></div>
+    <div class="dl-track">${esc(t.title)}</div>
+    <div class="dl-meta"><span>BPM: ${t.bpm}</span><span>Key: ${esc(t.key)}</span><span>${t.year}</span></div>
+    <div class="dl-meta"><span>${esc(t.genre)}</span><span>${esc(t.label)}</span></div>
+  </div>`;
+}
+
+function exportXLSX() {
+  if (!collection.length) return alert('No tracks to export.');
+  const ws = XLSX.utils.json_to_sheet(collection.map(t => ({
+    'Artist': t.artist, 'Album': t.album, 'Track Title': t.title,
+    'Year': t.year, 'Genre': t.genre, 'Label': t.label, 'BPM': t.bpm, 'Key': t.key
+  })));
+  ws['!cols'] = [22,26,32,7,14,22,7,12].map(wch => ({ wch }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Vinyl Collection');
+  XLSX.writeFile(wb, 'vinyl_collection.xlsx');
+}
+
+function exportDYMO() {
+  if (!collection.length) return alert('No tracks to export.');
+  const headers = ['Artist', 'Album', 'Track Title', 'Year', 'Genre', 'Label', 'BPM', 'Key'];
+  const rows = collection.map(t =>
+    [t.artist, t.album, t.title, t.year, t.genre, t.label, t.bpm, t.key]
+      .map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(','));
+  const blob = new Blob([[headers.join(','), ...rows].join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dymo_vinyl_labels.csv'; a.click();
+}
+
+// ── Discogs ──────────────────────────────────────────────
+async function exportToDiscogs(mode) {
+  if (!collection.length) return alert('No tracks to export.');
+  const username = document.getElementById('discogs-username').value.trim();
+  const token = document.getElementById('discogs-token').value.trim();
+  if (!username || !token) return alert('Please enter your Discogs username and token.');
+
+  const status = document.getElementById('discogs-status');
+  const resultsList = document.getElementById('discogs-results');
+  status.className = 'status-line loading';
+  status.textContent = 'Exporting to Discogs';
+  resultsList.innerHTML = '';
+
+  // Deduplicate by album
+  const albums = [...new Map(collection.map(t => [t.artist + t.album, t])).values()];
+  albums.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.id = 'dr-' + btoa(a.artist + a.album).slice(0, 10);
+    row.innerHTML = `<span>${esc(a.artist)} — ${esc(a.album)}</span><span class="pill searching">searching…</span>`;
+    resultsList.appendChild(row);
+  });
+
+  try {
+    const res = await fetch('/api/discogs/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection, username, token, mode })
+    });
+    const data = await res.json();
+    status.className = 'status-line';
+    const added = (data.results || []).filter(r => r.status === 'added').length;
+    status.textContent = `Done — ${added} of ${albums.length} album${albums.length !== 1 ? 's' : ''} added to Discogs ${mode}.`;
+
+    // Update individual rows
+    (data.results || []).forEach(r => {
+      const key = btoa(r.album).slice(0, 10);
+      // Find matching row
+      resultsList.querySelectorAll('.result-row').forEach(row => {
+        const albumText = row.querySelector('span')?.textContent || '';
+        if (r.album.includes(albumText.split(' — ')[1]?.trim() || '')) {
+          const pill = row.querySelector('.pill');
+          const labels = { added: 'added', failed: 'failed', not_found: 'not found', error: 'error' };
+          pill.className = 'pill ' + (r.status === 'added' ? 'added' : 'failed');
+          pill.textContent = labels[r.status] || r.status;
+        }
+      });
+    });
+  } catch (e) {
+    status.className = 'status-line';
+    status.textContent = 'Error: ' + e.message;
+  }
+}
+
+function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+</script>
+</body>
+</html>
