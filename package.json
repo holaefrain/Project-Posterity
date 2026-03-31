@@ -5,8 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node -r dotenv/config server.js",
-    "dev": "node --watch -r dotenv/config server.js"
+    "start": "node --import dotenv/config server.js",
+    "dev": "node --watch --import dotenv/config server.js"
   },
   "license": "ISC",
   "dependencies": {
