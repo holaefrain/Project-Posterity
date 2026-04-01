@@ -26,6 +26,25 @@
     --serif: 'Playfair Display', Georgia, serif;
   }
 
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8f3ea;
+      --surface: #f0e8d8;
+      --surface2: #e8dece;
+      --surface3: #ddd3c0;
+      --amber: #a07018;
+      --amber-dim: #7a540f;
+      --amber-glow: rgba(160,112,24,0.1);
+      --cream: #1c1610;
+      --cream-dim: #4a3d28;
+      --muted: #8a7a62;
+      --border: rgba(160,112,24,0.22);
+      --border-subtle: rgba(0,0,0,0.08);
+      --red: #b83a1e;
+      --green: #2e7a4e;
+    }
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -57,7 +76,7 @@
     height: 64px;
     position: sticky;
     top: 0;
-    background: rgba(14,12,10,0.92);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
     backdrop-filter: blur(12px);
     z-index: 100;
   }
@@ -181,8 +200,40 @@
   .search-bar {
     display: flex;
     gap: 10px;
-    margin-bottom: 28px;
+    margin-bottom: 12px;
   }
+  .filter-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .filter-panel.open { display: block; }
+  .filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 140px;
+  }
+  .filter-field input, .filter-field select {
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--cream);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    outline: none;
+  }
+  .filter-field input:focus, .filter-field select:focus { border-color: var(--amber); }
+  .filter-field select option { background: var(--surface2); }
   input[type="text"], input[type="password"] {
     background: var(--surface);
     border: 1px solid var(--border-subtle);
@@ -217,11 +268,11 @@
   .btn:active { transform: scale(0.98); }
   .btn:disabled { opacity: 0.4; cursor: default; transform: none; }
   .btn.primary { background: var(--amber); color: var(--bg); border-color: var(--amber); }
-  .btn.primary:hover { background: #d9a33a; }
-  .btn.danger { color: var(--red); border-color: rgba(192,74,42,0.3); }
-  .btn.danger:hover { background: rgba(192,74,42,0.1); }
-  .btn.success { color: var(--green); border-color: rgba(74,154,106,0.3); }
-  .btn.success:hover { background: rgba(74,154,106,0.1); }
+  .btn.primary:hover { background: var(--amber-dim); color: var(--bg); border-color: var(--amber-dim); }
+  .btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 30%, transparent); }
+  .btn.danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
+  .btn.success { color: var(--green); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+  .btn.success:hover { background: color-mix(in srgb, var(--green) 10%, transparent); }
 
   .status-line {
     font-size: 12px;
@@ -291,7 +342,7 @@
     color: var(--cream-dim);
     background: var(--surface2);
   }
-  .tag.added { border-color: rgba(74,154,106,0.4); color: var(--green); background: rgba(74,154,106,0.08); }
+  .tag.added { border-color: color-mix(in srgb, var(--green) 40%, transparent); color: var(--green); background: color-mix(in srgb, var(--green) 8%, transparent); }
 
   /* Collection table */
   .table-container {
@@ -300,7 +351,7 @@
     overflow: auto;
     margin-bottom: 20px;
   }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
   thead th {
     background: var(--surface2);
     padding: 10px 14px;
@@ -312,6 +363,19 @@
     text-transform: uppercase;
     border-bottom: 1px solid var(--border-subtle);
     white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+  }
+  thead th .col-resize {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    user-select: none;
+  }
+  thead th .col-resize:hover, thead th .col-resize.dragging {
+    background: var(--amber);
+    opacity: 0.5;
   }
   tbody td {
     padding: 10px 14px;
@@ -320,7 +384,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 180px;
   }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover td { background: var(--surface2); }
@@ -336,7 +399,7 @@
     transition: all 0.15s;
     font-family: var(--mono);
   }
-  .del-btn:hover { color: var(--red); background: rgba(192,74,42,0.1); }
+  .del-btn:hover { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
 
   .empty-state {
     text-align: center;
@@ -439,8 +502,8 @@
     border-radius: 99px;
     letter-spacing: 0.06em;
   }
-  .pill.added { background: rgba(74,154,106,0.15); color: var(--green); border: 1px solid rgba(74,154,106,0.3); }
-  .pill.failed { background: rgba(192,74,42,0.1); color: var(--red); border: 1px solid rgba(192,74,42,0.25); }
+  .pill.added { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); }
+  .pill.failed { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); }
   .pill.not_found { background: var(--surface3); color: var(--muted); border: 1px solid var(--border-subtle); }
   .pill.searching { background: var(--amber-glow); color: var(--amber); border: 1px solid var(--border); }
 
@@ -468,8 +531,10 @@
   }
   .inline-num { width: 54px; text-align: center; }
   .inline-key { width: 120px; }
-  .inline-num:focus, .inline-key:focus { border-bottom-color: var(--amber); }
-  .inline-num::placeholder, .inline-key::placeholder { color: var(--muted); }
+  .inline-pos { width: 36px; text-align: center; }
+  .inline-dur { width: 48px; text-align: center; }
+  .inline-num:focus, .inline-key:focus, .inline-pos:focus, .inline-dur:focus { border-bottom-color: var(--amber); }
+  .inline-num::placeholder, .inline-key::placeholder, .inline-pos::placeholder, .inline-dur::placeholder { color: var(--muted); }
   td.enriching-cell {
     color: var(--muted);
     font-size: 10px;
@@ -480,6 +545,34 @@
   .divider { border: none; border-top: 1px solid var(--border-subtle); margin: 28px 0; }
 
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Discogs wantlist */
+  .discogs-user-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .discogs-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--amber-dim);
+    background: var(--surface3);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--muted);
+  }
+  .discogs-user-name { font-size: 15px; font-weight: 500; color: var(--cream); }
+  .discogs-user-stats { font-size: 11px; color: var(--cream-dim); margin-top: 4px; letter-spacing: 0.03em; }
 </style>
 </head>
 <body>
@@ -487,7 +580,7 @@
 <header>
   <div class="logo">
     <div class="logo-disc"></div>
-    <span class="logo-name"><em>Vinyl</em> Manager</span>
+    <span class="logo-name"><em>Project</em> Posterity</span>
   </div>
   <nav>
     <button class="nav-btn active" data-tab="search" onclick="switchTab('search')">Search</button>
@@ -504,7 +597,7 @@
   <!-- SEARCH TAB -->
   <div class="section active" id="tab-search">
     <h1 class="section-title">Search records</h1>
-    <p class="section-sub">POWERED BY DISCOGS — SEARCH BY ARTIST, ALBUM, OR TRACK</p>
+    <p class="section-sub">POWERED BY DISCOGS & LOVE — SEARCH BY ARTIST, ALBUM, OR TRACK</p>
 
     <div id="search-token-notice" class="token-notice">
       A Discogs token is required to search. Enter it below, or add <code>DISCOGS_TOKEN</code> to your <code>.env</code> file.
@@ -519,7 +612,40 @@
     <div class="search-bar">
       <input type="text" id="search-input" placeholder="e.g. Massive Attack Mezzanine" />
       <button class="btn primary" id="search-btn" onclick="doSearch()">Search</button>
+      <button class="btn" id="filter-toggle" onclick="toggleFilters()" title="Filters">⚙ Filters</button>
     </div>
+
+    <div class="filter-panel" id="filter-panel">
+      <div class="filter-grid">
+        <div class="filter-field">
+          <label class="field-label">Label</label>
+          <input type="text" id="f-label" placeholder="e.g. Blue Note" />
+        </div>
+        <div class="filter-field">
+          <label class="field-label">Country</label>
+          <input type="text" id="f-country" placeholder="e.g. US" />
+        </div>
+        <div class="filter-field">
+          <label class="field-label">Year</label>
+          <input type="text" id="f-year" placeholder="e.g. 1994" />
+        </div>
+        <div class="filter-field">
+          <label class="field-label">Genre</label>
+          <input type="text" id="f-genre" placeholder="e.g. Electronic" />
+        </div>
+        <div class="filter-field">
+          <label class="field-label">Results</label>
+          <select id="f-per-page">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="25">25</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" style="margin-top:8px;font-size:10px" onclick="clearFilters()">Clear filters</button>
+    </div>
+
     <div class="status-line" id="search-status"></div>
     <div class="results-grid" id="results-area"></div>
   </div>
@@ -603,34 +729,57 @@
 
   <!-- DISCOGS TAB -->
   <div class="section" id="tab-discogs">
-    <h1 class="section-title">Discogs export</h1>
-    <p class="section-sub">ADD YOUR VINYL TO YOUR DISCOGS WANTLIST OR COLLECTION</p>
+    <h1 class="section-title">Discogs</h1>
+    <p class="section-sub">BROWSE YOUR WANTLIST · EXPORT YOUR COLLECTION</p>
 
-    <div class="discogs-setup">
-      <h3>Setup</h3>
-      <p>
-        You need a Discogs personal access token. Get one at
-        <a href="https://www.discogs.com/settings/developers" target="_blank">discogs.com/settings/developers</a>
-        → "Generate new token".<br>
-        You can also add <code>DISCOGS_TOKEN</code> and <code>DISCOGS_USERNAME</code> to your <code>.env</code> file to skip this step.
-      </p>
-      <div class="field-row">
-        <span class="field-label">Username</span>
-        <input type="text" id="discogs-username" placeholder="your_discogs_username" style="max-width:260px" />
-      </div>
-      <div class="field-row">
-        <span class="field-label">Token</span>
-        <input type="password" id="discogs-token" placeholder="your_personal_access_token" style="max-width:260px" />
+    <!-- Auth section — shown when not connected -->
+    <div id="dsc-auth">
+      <div class="discogs-setup">
+        <h3>Connect to Discogs</h3>
+        <p>
+          Enter your username and personal access token to browse your wantlist.<br>
+          Get a token at <a href="https://www.discogs.com/settings/developers" target="_blank">discogs.com/settings/developers</a>
+          → "Generate new token". You can also set <code>DISCOGS_TOKEN</code> and <code>DISCOGS_USERNAME</code> in your <code>.env</code> to auto-connect.
+        </p>
+        <div class="field-row">
+          <span class="field-label">Username</span>
+          <input type="text" id="discogs-username" placeholder="your_discogs_username" style="max-width:260px" />
+        </div>
+        <div class="field-row">
+          <span class="field-label">Token</span>
+          <input type="password" id="discogs-token" placeholder="your_personal_access_token" style="max-width:260px" />
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:12px">
+          <button class="btn primary" onclick="connectDiscogs()">Connect</button>
+          <span id="dsc-connect-status" style="font-size:12px;color:var(--cream-dim)"></span>
+        </div>
       </div>
     </div>
 
-    <div class="btn-row" style="margin-bottom:20px">
-      <button class="btn success" onclick="exportToDiscogs('wantlist')">Add to Wantlist</button>
-      <button class="btn" onclick="exportToDiscogs('collection')">Add to Collection</button>
-    </div>
+    <!-- Connected section — shown after successful auth -->
+    <div id="dsc-connected" style="display:none">
+      <div class="discogs-user-card" id="dsc-user-card"></div>
 
-    <div class="status-line" id="discogs-status"></div>
-    <div class="result-list" id="discogs-results"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-family:var(--serif);font-size:22px;color:var(--cream)">Wantlist</h2>
+        <button class="btn" style="font-size:11px;padding:6px 14px" onclick="disconnectDiscogs()">↩ Disconnect</button>
+      </div>
+
+      <div class="status-line" id="wantlist-status"></div>
+      <div class="results-grid" id="wantlist-area"></div>
+      <div id="wantlist-pagination" style="display:flex;gap:10px;justify-content:center;margin-top:20px;align-items:center"></div>
+
+      <hr class="divider" style="margin-top:36px">
+
+      <h2 style="font-family:var(--serif);font-size:22px;color:var(--cream);margin-bottom:8px">Export to Discogs</h2>
+      <p style="font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:16px">Push your local collection to your Discogs wantlist or collection.</p>
+      <div class="btn-row" style="margin-bottom:20px">
+        <button class="btn success" onclick="exportToDiscogs('wantlist')">Add to Wantlist</button>
+        <button class="btn" onclick="exportToDiscogs('collection')">Add to Collection</button>
+      </div>
+      <div class="status-line" id="discogs-status"></div>
+      <div class="result-list" id="discogs-results"></div>
+    </div>
   </div>
 
 </main>
@@ -708,6 +857,10 @@ function switchTab(t) {
   document.getElementById('tab-' + t).classList.add('active');
   if (t === 'export') { updateLabelSettings(); detectDymoPrinter(); }
   if (t === 'collection') renderCollection();
+  if (t === 'discogs' && !discogsConnected) {
+    const hasUser = document.getElementById('discogs-username').value.trim();
+    if ((serverHasToken || getToken()) && hasUser) connectDiscogs();
+  }
 }
 
 function updateCount() {
@@ -716,6 +869,15 @@ function updateCount() {
 
 // ── Search ───────────────────────────────────────────────
 document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+function toggleFilters() {
+  document.getElementById('filter-panel').classList.toggle('open');
+}
+
+function clearFilters() {
+  ['f-label','f-country','f-year','f-genre'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-per-page').value = '10';
+}
 
 async function doSearch() {
   const q = document.getElementById('search-input').value.trim();
@@ -729,18 +891,26 @@ async function doSearch() {
   }
   notice.classList.remove('visible');
 
+  const filters = {
+    label:   document.getElementById('f-label').value.trim(),
+    country: document.getElementById('f-country').value.trim(),
+    year:    document.getElementById('f-year').value.trim(),
+    genre:   document.getElementById('f-genre').value.trim()
+  };
+  const perPage = document.getElementById('f-per-page').value;
+
   const btn = document.getElementById('search-btn');
   const status = document.getElementById('search-status');
   btn.disabled = true;
   status.className = 'status-line loading';
-  status.textContent = 'Searching Discogs';
+  status.textContent = 'Searching Discogs…';
   document.getElementById('results-area').innerHTML = '';
 
   try {
     const res = await fetch('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q, token })
+      body: JSON.stringify({ query: q, token, filters, perPage })
     });
     const results = await res.json();
     if (results.error) throw new Error(results.error);
@@ -846,7 +1016,7 @@ async function enrichAlbum(r, startIndex, tagEl) {
     const res = await fetch('/api/enrich', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ artist: r.artist, album: r.album, tracks })
+      body: JSON.stringify({ artist: r.artist, album: r.album, tracks, videos: r.videos || [] })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -891,14 +1061,10 @@ function renderCollection() {
   const rows = collection.map((t, i) => {
     const bpmCell = t._enriching
       ? `<td class="enriching-cell">…</td>`
-      : t.bpm
-        ? `<td class="bpm-cell">${t.bpm}</td>`
-        : `<td><input class="inline-num" type="number" min="1" max="999" placeholder="BPM" oninput="collection[${i}].bpm=this.value" /></td>`;
+      : `<td><input class="inline-num" type="number" min="1" max="999" placeholder="BPM" value="${t.bpm || ''}" oninput="collection[${i}].bpm=this.value" /></td>`;
     const keyCell = t._enriching
       ? `<td class="enriching-cell">…</td>`
-      : t.key
-        ? `<td class="key-cell">${esc(t.key)}</td>`
-        : `<td><input class="inline-key" type="text" list="camelot-list" placeholder="Key" oninput="collection[${i}].key=this.value" /></td>`;
+      : `<td><input class="inline-key" type="text" list="camelot-list" placeholder="Key" value="${esc(t.key || '')}" oninput="collection[${i}].key=this.value" /></td>`;
     return `
     <tr>
       <td title="${esc(t.artist)}">${esc(t.artist)}</td>
@@ -907,8 +1073,8 @@ function renderCollection() {
       <td>${t.year}</td>
       <td>${esc(t.genre)}</td>
       <td title="${esc(t.label)}">${esc(t.label)}</td>
-      <td>${esc(t.position)}</td>
-      <td>${esc(t.duration)}</td>
+      <td><input class="inline-pos" type="text" placeholder="Pos" value="${esc(t.position || '')}" oninput="collection[${i}].position=this.value" /></td>
+      <td><input class="inline-dur" type="text" placeholder="0:00" value="${esc(t.duration || '')}" oninput="collection[${i}].duration=this.value" /></td>
       ${bpmCell}
       ${keyCell}
       <td><button class="del-btn" onclick="removeTrack(${i})">×</button></td>
@@ -918,9 +1084,17 @@ function renderCollection() {
     <div class="table-container">
       <table>
         <thead><tr>
-          <th>Artist</th><th>Album</th><th>Track</th><th>Year</th>
-          <th>Genre</th><th>Label</th><th>Pos</th><th>Duration</th>
-          <th>BPM</th><th>Key</th><th></th>
+          <th style="width:120px">Artist<span class="col-resize"></span></th>
+          <th style="width:140px">Album<span class="col-resize"></span></th>
+          <th style="width:140px">Track<span class="col-resize"></span></th>
+          <th style="width:48px">Year<span class="col-resize"></span></th>
+          <th style="width:100px">Genre<span class="col-resize"></span></th>
+          <th style="width:100px">Label<span class="col-resize"></span></th>
+          <th style="width:44px">Pos<span class="col-resize"></span></th>
+          <th style="width:64px">Duration<span class="col-resize"></span></th>
+          <th style="width:54px">BPM<span class="col-resize"></span></th>
+          <th style="width:160px">Key<span class="col-resize"></span></th>
+          <th style="width:32px"></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -928,10 +1102,32 @@ function renderCollection() {
     <div class="btn-row">
       <button class="btn danger" onclick="clearAll()">Clear all</button>
     </div>`;
+  initColResize();
 }
 
 function removeTrack(i) { collection.splice(i, 1); updateCount(); renderCollection(); }
 function clearAll() { if (confirm('Clear all tracks?')) { collection = []; updateCount(); renderCollection(); } }
+
+// ── Column resize ─────────────────────────────────────────
+function initColResize() {
+  document.querySelectorAll('thead th .col-resize').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      const th = handle.parentElement;
+      const startX = e.pageX;
+      const startW = th.offsetWidth;
+      handle.classList.add('dragging');
+      const onMove = ev => { th.style.width = Math.max(40, startW + ev.pageX - startX) + 'px'; };
+      const onUp = () => {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
+  });
+}
 
 // ── Export ───────────────────────────────────────────────
 const SCALE = 2.4; // px per mm for preview
@@ -1036,7 +1232,158 @@ function exportDYMO() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dymo_vinyl_labels.csv'; a.click();
 }
 
-// ── Discogs ──────────────────────────────────────────────
+// ── Discogs wantlist ────────────────────────────────────
+let discogsConnected = false;
+let wantlistPage = 1;
+let wantlistPages = 1;
+
+async function connectDiscogs() {
+  const username = document.getElementById('discogs-username').value.trim();
+  const token = getToken();
+  const statusEl = document.getElementById('dsc-connect-status');
+  if (!username) { statusEl.textContent = 'Enter your Discogs username.'; return; }
+  if (!token && !serverHasToken) { statusEl.textContent = 'Enter your Discogs personal access token.'; return; }
+  statusEl.textContent = 'Connecting…';
+  try {
+    const res = await fetch('/api/discogs/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, token })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    discogsConnected = true;
+
+    const card = document.getElementById('dsc-user-card');
+    const avatarHtml = data.avatar_url
+      ? `<img class="discogs-avatar" src="${esc(data.avatar_url)}" alt="" style="font-size:0" />`
+      : `<div class="discogs-avatar">♪</div>`;
+    card.innerHTML = `
+      ${avatarHtml}
+      <div>
+        <div class="discogs-user-name">${esc(data.name || data.username)}</div>
+        <div class="discogs-user-stats">@${esc(data.username)} · ${data.num_collection.toLocaleString()} in collection · ${data.num_wantlist.toLocaleString()} in wantlist</div>
+      </div>`;
+
+    document.getElementById('dsc-auth').style.display = 'none';
+    document.getElementById('dsc-connected').style.display = '';
+    loadWantlist(1);
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+function disconnectDiscogs() {
+  discogsConnected = false;
+  document.getElementById('dsc-auth').style.display = '';
+  document.getElementById('dsc-connected').style.display = 'none';
+  document.getElementById('dsc-connect-status').textContent = '';
+  document.getElementById('wantlist-area').innerHTML = '';
+  document.getElementById('wantlist-pagination').innerHTML = '';
+  document.getElementById('wantlist-status').textContent = '';
+}
+
+async function loadWantlist(page) {
+  const username = document.getElementById('discogs-username').value.trim();
+  const token = getToken();
+  const statusEl = document.getElementById('wantlist-status');
+  const area = document.getElementById('wantlist-area');
+  statusEl.className = 'status-line loading';
+  statusEl.textContent = `Loading wantlist${page > 1 ? ` — page ${page}` : ''}`;
+  area.innerHTML = '';
+  document.getElementById('wantlist-pagination').innerHTML = '';
+
+  try {
+    const params = new URLSearchParams({ username, token: token || '', page, perPage: 25 });
+    const res = await fetch(`/api/discogs/wantlist?${params}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    wantlistPage = data.pagination.page;
+    wantlistPages = data.pagination.pages;
+    statusEl.className = 'status-line';
+    statusEl.textContent = `${data.pagination.items.toLocaleString()} item${data.pagination.items !== 1 ? 's' : ''} in wantlist`;
+    renderWantlist(data.items);
+    renderWantlistPagination(data.pagination);
+  } catch (e) {
+    statusEl.className = 'status-line';
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+function renderWantlist(items) {
+  const area = document.getElementById('wantlist-area');
+  if (!items.length) {
+    area.innerHTML = '<div class="empty-state"><span class="big">♪</span>Your wantlist is empty.</div>';
+    return;
+  }
+  items.forEach(item => {
+    const alreadyAdded = collection.some(t => String(t.discogsId) === String(item.discogsId));
+    const card = document.createElement('div');
+    card.className = 'result-card' + (alreadyAdded ? ' added' : '');
+    const thumbHtml = item.thumb
+      ? `<img class="rc-thumb" src="${esc(item.thumb)}" alt="" loading="lazy" />`
+      : `<div class="rc-thumb-placeholder">♪</div>`;
+    const genre = item.styles || item.genre;
+    card.innerHTML = `
+      <div class="rc-left">
+        ${thumbHtml}
+        <div class="rc-info">
+          <div class="rc-title">${esc(item.artist)} — ${esc(item.album)} <span style="font-weight:300;color:var(--muted)">(${item.year || '—'})</span></div>
+          <div class="rc-meta">${esc(genre || '')}${item.label ? ' · ' + esc(item.label) : ''}</div>
+          <div class="rc-tracks">${esc(item.formats || '')}</div>
+        </div>
+      </div>
+      <div class="rc-right">
+        ${item.discogsUrl ? `<a class="rc-discogs-link" href="${esc(item.discogsUrl)}" target="_blank" onclick="event.stopPropagation()">↗ Discogs</a>` : ''}
+        <span class="tag${alreadyAdded ? ' added' : ''}" id="wtag-${item.discogsId}">${alreadyAdded ? '✓ Added' : '+ Add'}</span>
+      </div>`;
+    if (!alreadyAdded) card.onclick = () => addFromWantlist(item, card);
+    area.appendChild(card);
+  });
+}
+
+function renderWantlistPagination(pagination) {
+  const el = document.getElementById('wantlist-pagination');
+  if (pagination.pages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <button class="btn" ${pagination.page <= 1 ? 'disabled' : ''} onclick="loadWantlist(${pagination.page - 1})">← Prev</button>
+    <span style="font-size:12px;color:var(--cream-dim)">${pagination.page} / ${pagination.pages}</span>
+    <button class="btn" ${pagination.page >= pagination.pages ? 'disabled' : ''} onclick="loadWantlist(${pagination.page + 1})">Next →</button>`;
+}
+
+async function addFromWantlist(item, card) {
+  if (card.classList.contains('added')) return;
+  const tag = document.getElementById('wtag-' + item.discogsId);
+  tag.textContent = '⟳ Fetching…';
+  tag.className = 'tag enriching';
+  card.onclick = null;
+  try {
+    const token = getToken();
+    const params = token ? `?token=${encodeURIComponent(token)}` : '';
+    const res = await fetch(`/api/discogs/release/${item.discogsId}${params}`);
+    const detail = await res.json();
+    if (detail.error) throw new Error(detail.error);
+    addAlbum({
+      artist: item.artist,
+      album: item.album,
+      year: item.year,
+      genre: item.styles || item.genre,
+      label: item.label,
+      tracks: detail.tracks,
+      discogsId: item.discogsId,
+      discogsUrl: item.discogsUrl,
+      thumb: item.thumb,
+      videos: detail.videos
+    }, card);
+  } catch (e) {
+    tag.textContent = '+ Add';
+    tag.className = 'tag';
+    card.onclick = () => addFromWantlist(item, card);
+    console.warn('Failed to add from wantlist:', e.message);
+  }
+}
+
+// ── Discogs export ────────────────────────────────────────
 async function exportToDiscogs(mode) {
   if (!collection.length) return alert('No tracks to export.');
   const username = document.getElementById('discogs-username').value.trim();
@@ -1069,7 +1416,6 @@ async function exportToDiscogs(mode) {
     status.className = 'status-line';
     const added = (data.results || []).filter(r => r.status === 'added').length;
     status.textContent = `Done — ${added} of ${albums.length} album${albums.length !== 1 ? 's' : ''} added to Discogs ${mode}.`;
-
     (data.results || []).forEach(r => {
       resultsList.querySelectorAll('.result-row').forEach(row => {
         const albumText = row.querySelector('span')?.textContent || '';

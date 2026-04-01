@@ -3,6 +3,7 @@ import cors from 'cors';
 import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { analyzeAudio, matchVideoToTrack } from './audioAnalysis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -23,15 +24,25 @@ app.get('/api/config', (_req, res) => {
 
 // Search records via Discogs API
 app.post('/api/search', async (req, res) => {
-  const { query, token } = req.body;
+  const { query, token, filters = {}, perPage = 10 } = req.body;
   if (!query) return res.status(400).json({ error: 'Query required' });
 
   const authToken = token || DISCOGS_TOKEN;
   if (!authToken) return res.status(400).json({ error: 'Discogs token required. Add it to .env or enter it in the Discogs tab.' });
 
   try {
-    // Search Discogs for releases matching the query
-    const searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=vinyl&per_page=4`;
+    const params = new URLSearchParams({
+      q: query,
+      type: 'release',
+      format: 'vinyl',
+      per_page: Math.min(Math.max(parseInt(perPage) || 10, 1), 25)
+    });
+    if (filters.label)   params.set('label',   filters.label);
+    if (filters.country) params.set('country',  filters.country);
+    if (filters.year)    params.set('year',     filters.year);
+    if (filters.genre)   params.set('genre',    filters.genre);
+
+    const searchUrl = `https://api.discogs.com/database/search?${params}`;
     const searchRes = await fetch(searchUrl, {
       headers: {
         'Authorization': `Discogs token=${authToken}`,
@@ -94,7 +105,8 @@ app.post('/api/search', async (req, res) => {
             tracks,
             discogsId: release.id,
             discogsUrl,
-            thumb
+            thumb,
+            videos: (detail.videos || []).map(v => ({ uri: v.uri, title: v.title || '' }))
           };
         } catch {
           // If detail fetch fails, return basic info with no tracks
@@ -216,6 +228,118 @@ async function enrichWithSpotify(artist, album, tracks, token) {
   }));
 }
 
+// ── Camelot wheel conversion ──────────────────────────────
+const CAMELOT_MAP = {
+  'C major': '8B',  'C minor': '5A',
+  'C# major': '3B', 'C# minor': '12A',
+  'Db major': '3B', 'Db minor': '12A',
+  'D major': '10B', 'D minor': '7A',
+  'D# major': '5B', 'D# minor': '2A',
+  'Eb major': '5B', 'Eb minor': '2A',
+  'Ab major': '4B', 'Ab minor': '1A',
+  'E major': '12B', 'E minor': '9A',
+  'F major': '7B',  'F minor': '4A',
+  'F# major': '2B', 'F# minor': '11A',
+  'Gb major': '2B', 'Gb minor': '11A',
+  'G major': '9B',  'G minor': '6A',
+  'G# major': '4B', 'G# minor': '1A',
+  'A major': '11B', 'A minor': '8A',
+  'A# major': '6B', 'A# minor': '3A',
+  'Bb major': '6B', 'Bb minor': '3A',
+  'B major': '1B',  'B minor': '10A',
+};
+
+function toCamelot(keyName) {
+  if (!keyName) return '';
+  const normalised = keyName.trim()
+    .replace(/\bmaj(or)?\b/i, 'major')
+    .replace(/\bmin(or)?\b/i, 'minor');
+  for (const [k, v] of Object.entries(CAMELOT_MAP)) {
+    if (k.toLowerCase() === normalised.toLowerCase()) return `${v} - ${keyName.trim()}`;
+  }
+  return keyName; // already Camelot or unrecognised — pass through
+}
+
+// ── Beatport scraper ──────────────────────────────────────
+const BEATPORT_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'DNT': '1'
+};
+
+// Recursively find the first array whose items have a numeric `bpm` field
+function findTrackArray(obj, depth = 0) {
+  if (depth > 12 || !obj || typeof obj !== 'object') return null;
+  if (Array.isArray(obj)) {
+    if (obj.length > 0 && typeof obj[0]?.bpm === 'number') return obj;
+    for (const item of obj) {
+      const found = findTrackArray(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const val of Object.values(obj)) {
+    const found = findTrackArray(val, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+function extractBeatportKey(track) {
+  // Beatport stores key as key_name (e.g. "D Major") and key_id (numeric)
+  if (track.key_name) return track.key_name;
+  // Fallback: legacy object form
+  const k = track.key;
+  if (!k) return '';
+  if (typeof k === 'object') return k.name || k.shortname || k.camelot_value || '';
+  return String(k);
+}
+
+async function enrichWithBeatport(artist, title) {
+  const q = encodeURIComponent(`${artist} ${title}`);
+  const url = `https://www.beatport.com/search/tracks?q=${q}`;
+
+  let html;
+  try {
+    const res = await fetch(url, { headers: BEATPORT_HEADERS });
+    if (!res.ok) { console.warn(`[Beatport] HTTP ${res.status} for "${title}"`); return null; }
+    html = await res.text();
+  } catch (e) {
+    console.warn(`[Beatport] fetch error for "${title}":`, e.message);
+    return null;
+  }
+
+  const scriptMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!scriptMatch) { console.warn(`[Beatport] no __NEXT_DATA__ for "${title}"`); return null; }
+
+  let data;
+  try { data = JSON.parse(scriptMatch[1]); }
+  catch (e) { console.warn(`[Beatport] JSON parse error: ${e.message}`); return null; }
+
+  const tracks = findTrackArray(data);
+  if (!tracks?.length) { console.warn(`[Beatport] no tracks in response for "${title}"`); return null; }
+
+  // Find best-matching track by normalized title + artist
+  const titleNorm = norm(title);
+  const artistNorm = norm(artist);
+  const match = tracks.find(t => {
+    const tName = norm(t.track_name || t.name || t.title || '');
+    const tArtists = (t.artists || []).map(a => norm(a.name || a.artist_name || '')).join(' ');
+    return tName === titleNorm || (tName.includes(titleNorm) && tArtists.includes(artistNorm));
+  }) || tracks.find(t => norm(t.track_name || t.name || t.title || '').includes(titleNorm))
+    || tracks[0]; // best-effort first result
+
+  if (!match) return null;
+
+  const bpm = match.bpm ? Math.round(match.bpm) : null;
+  const key = extractBeatportKey(match);
+  console.log(`[Beatport] "${title}" → ${bpm} BPM, ${key}`);
+  if (!bpm && !key) return null;
+
+  return { bpm, key };
+}
+
 // ── MusicBrainz helpers ───────────────────────────────────
 async function enrichWithMusicBrainz(artist, title) {
   const query = `recording:"${title.replace(/"/g, '')}" AND artist:"${artist.replace(/"/g, '')}"`;
@@ -240,55 +364,143 @@ async function enrichWithMusicBrainz(artist, title) {
   return (bpm || key) ? { bpm, key } : null;
 }
 
-// Enrich tracks with BPM + key via Spotify → MusicBrainz fallback
+// Enrich tracks: Beatport first, YouTube audio analysis as fallback
 app.post('/api/enrich', async (req, res) => {
-  const { artist, album, tracks } = req.body;
+  const { artist, album, tracks, videos } = req.body;
   if (!artist || !album || !tracks?.length) return res.status(400).json({ error: 'artist, album, and tracks required' });
 
   const results = tracks.map(t => ({ title: t.title, bpm: '', key: '' }));
 
-  // ── Spotify + MusicBrainz enrichment (commented out while figuring out BPM/key source) ──
-  // const spotifyToken = await getSpotifyToken();
-  // if (spotifyToken) {
-  //   try {
-  //     const spotifyResults = await enrichWithSpotify(artist, album, tracks, spotifyToken);
-  //     if (spotifyResults) {
-  //       spotifyResults.forEach((r, i) => {
-  //         if (r) {
-  //           results[i].bpm = r.bpm;
-  //           results[i].key = r.key;
-  //           console.log(`[Spotify] ${tracks[i].title} → ${r.bpm} BPM, ${r.key}`);
-  //         } else {
-  //           console.log(`[Spotify] ${tracks[i].title} → not found`);
-  //         }
-  //       });
-  //     }
-  //   } catch (e) {
-  //     console.warn('Spotify enrichment error:', e.message);
-  //   }
-  // } else {
-  //   console.log('[Spotify] skipped — no credentials in .env');
-  // }
-  //
-  // for (let i = 0; i < results.length; i++) {
-  //   if (results[i].bpm || results[i].key) continue;
-  //   console.log(`[MusicBrainz] looking up: ${tracks[i].title}`);
-  //   try {
-  //     const mb = await enrichWithMusicBrainz(artist, tracks[i].title);
-  //     if (mb) {
-  //       results[i].bpm = mb.bpm || '';
-  //       results[i].key = mb.key || '';
-  //       console.log(`[MusicBrainz] ${tracks[i].title} → ${mb.bpm} BPM, ${mb.key}`);
-  //     } else {
-  //       console.log(`[MusicBrainz] ${tracks[i].title} → not found`);
-  //     }
-  //   } catch (e) {
-  //     console.warn('MusicBrainz enrichment error:', e.message);
-  //   }
-  //   if (i < results.length - 1) await new Promise(r => setTimeout(r, 1100));
-  // }
+  await Promise.all(tracks.map(async (track, i) => {
+    const trackArtist = track.artist || artist;
+
+    // ── 1. Beatport (human-verified BPM + key) ──
+    try {
+      const bp = await enrichWithBeatport(trackArtist, track.title);
+      if (bp?.bpm || bp?.key) {
+        results[i].bpm = bp.bpm || '';
+        results[i].key = toCamelot(bp.key);
+        return; // done — skip audio analysis
+      }
+    } catch (e) {
+      console.warn(`[Beatport] error for "${track.title}":`, e.message);
+    }
+
+    // ── 2. YouTube audio analysis fallback ──
+    if (!videos?.length) return;
+    const url = matchVideoToTrack(track.title, videos);
+    if (!url) {
+      console.log(`[YouTube] ${track.title} → no matching video`);
+      return;
+    }
+    console.log(`[YouTube] ${track.title} → ${url}`);
+    try {
+      const { bpm, key } = await analyzeAudio(url);
+      results[i].bpm = bpm;
+      results[i].key = toCamelot(key);
+      console.log(`[YouTube] ${track.title} → ${bpm} BPM, ${toCamelot(key)}`);
+    } catch (e) {
+      console.warn(`[YouTube] ${track.title} analysis failed:`, e.message);
+    }
+  }));
 
   res.json({ tracks: results });
+});
+
+// Verify Discogs credentials and return user profile
+app.post('/api/discogs/verify', async (req, res) => {
+  const { username, token } = req.body;
+  const authToken = token || DISCOGS_TOKEN;
+  if (!authToken || !username) return res.status(400).json({ error: 'Username and token required' });
+  try {
+    const r = await fetch(`https://api.discogs.com/users/${encodeURIComponent(username)}`, {
+      headers: { 'Authorization': `Discogs token=${authToken}`, 'User-Agent': 'VinylManager/1.0' }
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      return res.status(r.status).json({ error: err.message || 'Invalid credentials' });
+    }
+    const d = await r.json();
+    res.json({
+      username: d.username,
+      name: d.name || d.username,
+      avatar_url: d.avatar_url || '',
+      num_collection: d.num_collection || 0,
+      num_wantlist: d.num_wantlist || 0
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Fetch paginated wantlist
+app.get('/api/discogs/wantlist', async (req, res) => {
+  const { username, token, page = 1, perPage = 25 } = req.query;
+  const authToken = token || DISCOGS_TOKEN;
+  if (!authToken || !username) return res.status(400).json({ error: 'Username and token required' });
+  try {
+    const r = await fetch(
+      `https://api.discogs.com/users/${encodeURIComponent(username)}/wants?page=${page}&per_page=${perPage}&sort=added&sort_order=desc`,
+      { headers: { 'Authorization': `Discogs token=${authToken}`, 'User-Agent': 'VinylManager/1.0' } }
+    );
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      return res.status(r.status).json({ error: err.message || 'Failed to fetch wantlist' });
+    }
+    const data = await r.json();
+    res.json({
+      items: (data.wants || []).map(w => {
+        const info = w.basic_information;
+        return {
+          discogsId: info.id,
+          artist: (info.artists || []).map(a => a.name).join(', ').replace(/\s*\(\d+\)/g, ''),
+          album: info.title,
+          year: info.year || '',
+          genre: (info.genres || []).join(', '),
+          styles: (info.styles || []).join(', '),
+          label: (info.labels || []).map(l => l.name).join(', '),
+          thumb: info.thumb || info.cover_image || '',
+          formats: (info.formats || []).map(f => f.name).join(', '),
+          discogsUrl: `https://www.discogs.com/release/${info.id}`
+        };
+      }),
+      pagination: {
+        page: data.pagination?.page || 1,
+        pages: data.pagination?.pages || 1,
+        items: data.pagination?.items || 0,
+        perPage: data.pagination?.per_page || 25
+      }
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Fetch full release details (tracklist + videos) for wantlist add
+app.get('/api/discogs/release/:id', async (req, res) => {
+  const { id } = req.params;
+  const { token } = req.query;
+  const authToken = token || DISCOGS_TOKEN;
+  if (!authToken) return res.status(400).json({ error: 'Token required' });
+  try {
+    const r = await fetch(`https://api.discogs.com/releases/${id}`, {
+      headers: { 'Authorization': `Discogs token=${authToken}`, 'User-Agent': 'VinylManager/1.0' }
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      return res.status(r.status).json({ error: err.message || 'Failed to fetch release' });
+    }
+    const detail = await r.json();
+    res.json({
+      tracks: (detail.tracklist || [])
+        .filter(t => t.type_ === 'track')
+        .map(t => ({
+          title: t.title,
+          artist: t.artists ? t.artists.map(a => a.name).join(', ').replace(/\s*\(\d+\)/g, '') : '',
+          duration: t.duration || '',
+          position: t.position || '',
+          bpm: '',
+          key: ''
+        })),
+      videos: (detail.videos || []).map(v => ({ uri: v.uri, title: v.title || '' }))
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Export to Discogs wantlist or collection
