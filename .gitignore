@@ -2,3 +2,8 @@ node_modules/
 .env
 *.xlsx
 *.csv
+*.claude
+*.log
+*.json
+*.txt
+*.db
