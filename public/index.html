@@ -358,6 +358,18 @@
   .export-card h3 { font-size: 14px; font-weight: 500; color: var(--amber); margin-bottom: 8px; letter-spacing: 0.05em; }
   .export-card p { font-size: 12px; color: var(--cream-dim); line-height: 1.7; margin-bottom: 16px; }
 
+  /* DYMO settings */
+  .dymo-settings { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-bottom: 20px; }
+  .dymo-settings .field-row { margin-bottom: 0; }
+  .dymo-settings select, .dymo-settings input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
   /* DYMO preview */
   .dymo-preview-wrap {
     background: var(--surface);
@@ -374,25 +386,29 @@
     margin-bottom: 16px;
   }
   .dymo-label {
-    width: 380px;
-    height: 152px;
     border: 1.5px dashed var(--border);
     border-radius: 6px;
-    padding: 14px 18px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 5px;
+    gap: 6px;
     background: #fff;
     color: #111;
     font-family: 'Arial', sans-serif;
-    margin: 0 auto;
+    overflow: hidden;
+    box-sizing: border-box;
   }
-  .dymo-label .dl-artist { font-size: 14px; font-weight: 700; }
-  .dymo-label .dl-album { font-size: 12px; }
-  .dymo-label .dl-track { font-size: 11px; color: #555; }
-  .dymo-label .dl-meta { font-size: 10px; color: #777; display: flex; gap: 12px; }
-  .dymo-label .dl-divider { height: 1px; background: #ddd; margin: 3px 0; }
+  .dymo-label .dl-artist { font-size: 13px; font-weight: 700; word-break: break-word; }
+  .dymo-label .dl-album { font-size: 11px; word-break: break-word; }
+  .dymo-label .dl-track { font-size: 10px; color: #555; word-break: break-word; }
+  .dymo-label .dl-meta { font-size: 9px; color: #777; display: flex; flex-direction: column; gap: 3px; }
+  .dymo-label .dl-divider { height: 1px; background: #ddd; margin: 4px 0; }
+  .dymo-label .dl-tracklist { display: flex; flex-direction: column; gap: 4px; flex: 1; justify-content: center; }
+  .dymo-label .dl-track-row { display: flex; flex-direction: column; gap: 1px; font-size: 9px; }
+  .dymo-label .dl-track-title { display: flex; align-items: baseline; gap: 4px; }
+  .dymo-label .dl-pos { color: #aaa; min-width: 14px; flex-shrink: 0; }
+  .dymo-label .dl-track { color: #333; flex: 1; word-break: break-word; }
+  .dymo-label .dl-track-meta { font-size: 8px; color: #aaa; padding-left: 18px; display: flex; gap: 6px; }
 
   /* Discogs section */
   .discogs-setup {
@@ -440,6 +456,20 @@
     color: var(--amber);
     font-size: 11px;
   }
+  .inline-num, .inline-key {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--amber);
+    font-size: 11px;
+    font-family: inherit;
+    padding: 1px 2px;
+    outline: none;
+  }
+  .inline-num { width: 54px; text-align: center; }
+  .inline-key { width: 120px; }
+  .inline-num:focus, .inline-key:focus { border-bottom-color: var(--amber); }
+  .inline-num::placeholder, .inline-key::placeholder { color: var(--muted); }
   td.enriching-cell {
     color: var(--muted);
     font-size: 10px;
@@ -509,8 +539,52 @@
     <p class="section-sub">DOWNLOAD YOUR COLLECTION OR PRINT DYMO LABELS</p>
 
     <div class="dymo-preview-wrap">
-      <div class="dymo-preview-label">Label preview — DYMO 30323 (2⅛″ × 4″)</div>
+      <div class="dymo-preview-label" id="preview-label-text">Label preview</div>
+
+      <!-- DYMO settings -->
+      <div class="dymo-settings">
+        <div class="field-row">
+          <span class="field-label">DYMO model</span>
+          <select id="dymo-model" onchange="updateLabelSettings()">
+            <option>LabelWriter 450</option>
+            <option>LabelWriter 450 Turbo</option>
+            <option>LabelWriter 550</option>
+            <option>LabelWriter 550 Turbo</option>
+            <option>LabelWriter 4XL</option>
+            <option>LabelWriter Wireless</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Label roll</span>
+          <select id="dymo-size" onchange="updateLabelSettings()">
+            <option value="54x101">30323 — 2⅛″ × 4″ (54 × 101 mm)</option>
+            <option value="28x89">30252 — 1⅛″ × 3½″ (28 × 89 mm)</option>
+            <option value="54x54">30257 — 2⅛″ × 2⅛″ (54 × 54 mm)</option>
+            <option value="25x54">30336 — 1″ × 2⅛″ (25 × 54 mm)</option>
+            <option value="19x51">30332 — ¾″ × 2″ (19 × 51 mm)</option>
+            <option value="57x101">30370 — 2¼″ × 4″ (57 × 101 mm)</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div class="field-row" id="custom-size-row" style="display:none">
+          <span class="field-label">Size (mm)</span>
+          <input type="number" id="custom-w" placeholder="W" min="10" max="200" style="width:54px" oninput="updateLabelSettings()" />
+          <span style="color:var(--muted);font-size:12px">×</span>
+          <input type="number" id="custom-h" placeholder="H" min="10" max="300" style="width:54px" oninput="updateLabelSettings()" />
+        </div>
+        <div class="field-row" style="gap:8px">
+          <span class="field-label">Printer</span>
+          <span id="dymo-printer-status" style="font-size:11px;color:var(--muted)">Not detected</span>
+          <button class="btn" style="padding:4px 12px;font-size:11px" onclick="detectDymoPrinter()">↺ Detect</button>
+        </div>
+      </div>
+
       <div id="label-preview"></div>
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+        <button class="btn primary" id="btn-dymo-print" onclick="printDymoLabels()" disabled>Print labels</button>
+        <span id="dymo-print-status" style="font-size:11px;color:var(--cream-dim)"></span>
+      </div>
     </div>
 
     <div class="export-grid">
@@ -521,7 +595,7 @@
       </div>
       <div class="export-card">
         <h3>DYMO labels CSV</h3>
-        <p>One row per track, formatted for DYMO Connect 30323. Import via <em>File → Import Data</em> in DYMO Connect.</p>
+        <p>One row per track, formatted for your selected label size. Import via <em>File → Import Data</em> in DYMO Connect.</p>
         <button class="btn" onclick="exportDYMO()">Download labels .csv</button>
       </div>
     </div>
@@ -562,8 +636,53 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/js/DYMO.Label.Framework.latest.js" onerror="console.warn('DYMO SDK failed to load')"></script>
 <script>
 let collection = [];
+let serverHasToken = false;
+
+// ── Camelot wheel ────────────────────────────────────────
+const CAMELOT = [
+  ['1A','Ab minor'],['1B','B major'],
+  ['2A','Eb minor'],['2B','Gb major'],
+  ['3A','Bb minor'],['3B','Db major'],
+  ['4A','F minor'], ['4B','Ab major'],
+  ['5A','C minor'], ['5B','Eb major'],
+  ['6A','G minor'], ['6B','Bb major'],
+  ['7A','D minor'], ['7B','F major'],
+  ['8A','A minor'], ['8B','C major'],
+  ['9A','E minor'], ['9B','G major'],
+  ['10A','B minor'],['10B','D major'],
+  ['11A','F# minor'],['11B','A major'],
+  ['12A','C# minor'],['12B','E major'],
+];
+
+// Inject datalist once so all key inputs share it
+const dl = document.createElement('datalist');
+dl.id = 'camelot-list';
+dl.innerHTML = CAMELOT.map(([code, name]) =>
+  `<option value="${code} — ${name}">${code} — ${name}</option>`
+  + `<option value="${name}">${name}</option>`
+).join('');
+document.head.appendChild(dl);
+
+// ── Config load ──────────────────────────────────────────
+(async () => {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    serverHasToken = !!cfg.hasDiscogsToken;
+    if (cfg.discogsUsername) {
+      const el = document.getElementById('discogs-username');
+      if (el && !el.value) el.value = cfg.discogsUsername;
+    }
+    if (serverHasToken) {
+      // Hide the token input rows since the server has the token
+      document.querySelectorAll('.field-row').forEach(row => {
+        if (row.querySelector('#search-token, #discogs-token')) row.style.display = 'none';
+      });
+    }
+  } catch {}
+})();
 
 // ── Token helpers ────────────────────────────────────────
 // Sync the search tab token with the discogs tab token so
@@ -587,7 +706,7 @@ function switchTab(t) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + t).classList.add('active');
-  if (t === 'export') renderExport();
+  if (t === 'export') { updateLabelSettings(); detectDymoPrinter(); }
   if (t === 'collection') renderCollection();
 }
 
@@ -604,7 +723,7 @@ async function doSearch() {
 
   const token = getToken();
   const notice = document.getElementById('search-token-notice');
-  if (!token) {
+  if (!token && !serverHasToken) {
     notice.classList.add('visible');
     return;
   }
@@ -772,10 +891,14 @@ function renderCollection() {
   const rows = collection.map((t, i) => {
     const bpmCell = t._enriching
       ? `<td class="enriching-cell">…</td>`
-      : `<td class="bpm-cell">${t.bpm || '—'}</td>`;
+      : t.bpm
+        ? `<td class="bpm-cell">${t.bpm}</td>`
+        : `<td><input class="inline-num" type="number" min="1" max="999" placeholder="BPM" oninput="collection[${i}].bpm=this.value" /></td>`;
     const keyCell = t._enriching
       ? `<td class="enriching-cell">…</td>`
-      : `<td class="key-cell">${esc(t.key) || '—'}</td>`;
+      : t.key
+        ? `<td class="key-cell">${esc(t.key)}</td>`
+        : `<td><input class="inline-key" type="text" list="camelot-list" placeholder="Key" oninput="collection[${i}].key=this.value" /></td>`;
     return `
     <tr>
       <td title="${esc(t.artist)}">${esc(t.artist)}</td>
@@ -811,18 +934,82 @@ function removeTrack(i) { collection.splice(i, 1); updateCount(); renderCollecti
 function clearAll() { if (confirm('Clear all tracks?')) { collection = []; updateCount(); renderCollection(); } }
 
 // ── Export ───────────────────────────────────────────────
+const SCALE = 2.4; // px per mm for preview
+
+function getLabelDimensions() {
+  const size = document.getElementById('dymo-size')?.value || '54x101';
+  if (size === 'custom') {
+    const w = parseFloat(document.getElementById('custom-w')?.value) || 54;
+    const h = parseFloat(document.getElementById('custom-h')?.value) || 101;
+    return { w, h };
+  }
+  const [w, h] = size.split('x').map(Number);
+  return { w, h };
+}
+
+function updateLabelSettings() {
+  const size = document.getElementById('dymo-size')?.value;
+  document.getElementById('custom-size-row').style.display = size === 'custom' ? '' : 'none';
+  const model = document.getElementById('dymo-model')?.value || 'LabelWriter 450';
+  const { w, h } = getLabelDimensions();
+  const sizeLabel = document.getElementById('dymo-size');
+  const sizeText = sizeLabel?.options[sizeLabel.selectedIndex]?.text || '';
+  document.getElementById('preview-label-text').textContent =
+    `Label preview — DYMO ${model} · ${sizeText || `${w} × ${h} mm`}`;
+  renderExport();
+}
+
 function renderExport() {
   const prev = document.getElementById('label-preview');
   if (!collection.length) { prev.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Add tracks to see label preview</div>'; return; }
-  const t = collection[0];
-  prev.innerHTML = `<div class="dymo-label">
-    <div class="dl-artist">${esc(t.artist)}</div>
-    <div class="dl-album">${esc(t.album)}</div>
-    <div class="dl-divider"></div>
-    <div class="dl-track">${esc(t.title)}</div>
-    <div class="dl-meta"><span>BPM: ${t.bpm || '…'}</span><span>Key: ${esc(t.key) || '…'}</span><span>${esc(t.position)}</span><span>${t.year}</span></div>
-    <div class="dl-meta"><span>${esc(t.genre)}</span><span>${esc(t.label)}</span></div>
-  </div>`;
+
+  // Group tracks by album
+  const albums = [];
+  const seen = new Map();
+  for (const t of collection) {
+    const key = t.artist + '||' + t.album;
+    if (!seen.has(key)) { seen.set(key, []); albums.push({ info: t, tracks: seen.get(key) }); }
+    seen.get(key).push(t);
+  }
+
+  const TRACKS_PER_STICKER = 5;
+
+  const labels = albums.flatMap(({ info: a, tracks }) => {
+    // Split into chunks of 5
+    const chunks = [];
+    for (let i = 0; i < tracks.length; i += TRACKS_PER_STICKER) {
+      chunks.push(tracks.slice(i, i + TRACKS_PER_STICKER));
+    }
+    const { w, h } = getLabelDimensions();
+    const pw = Math.round(w * SCALE), ph = Math.round(h * SCALE);
+    const isPortrait = h >= w;
+    const baseFontScale = Math.min(w, h) / 54;
+    return chunks.map((chunk, ci) => `
+      <div class="dymo-label" style="width:${pw}px;height:${ph}px;padding:${Math.round(ph*0.05)}px ${Math.round(pw*0.07)}px">
+        <div class="dl-artist" style="font-size:${Math.round(13*baseFontScale)}px">${esc(a.artist)}</div>
+        <div class="dl-album">${esc(a.album)}${chunks.length > 1 ? ` <span style="font-weight:300">(${ci + 1}/${chunks.length})</span>` : ''}</div>
+        <div class="dl-divider"></div>
+        <div class="dl-tracklist">
+          ${chunk.map(t => {
+            const meta = [t.bpm ? `${t.bpm} BPM` : '', t.key || '', t.duration || ''].filter(Boolean).join(' · ');
+            return `<div class="dl-track-row">
+              <div class="dl-track-title">
+                ${t.position ? `<span class="dl-pos">${esc(t.position)}</span>` : ''}
+                <span class="dl-track">${esc(t.title)}</span>
+              </div>
+              ${meta ? `<div class="dl-track-meta">${esc(meta)}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="dl-divider"></div>
+        <div class="dl-meta">
+          <span>${a.year}${a.genre ? ' · ' + esc(a.genre) : ''}</span>
+          <span>${esc(a.label)}</span>
+        </div>
+      </div>`);
+  });
+
+  prev.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">${labels.join('')}</div>`;
 }
 
 function exportXLSX() {
@@ -854,7 +1041,8 @@ async function exportToDiscogs(mode) {
   if (!collection.length) return alert('No tracks to export.');
   const username = document.getElementById('discogs-username').value.trim();
   const token = getToken();
-  if (!username || !token) return alert('Please enter your Discogs username and token.');
+  if (!username) return alert('Please enter your Discogs username.');
+  if (!token && !serverHasToken) return alert('Please enter your Discogs token.');
 
   const status = document.getElementById('discogs-status');
   const resultsList = document.getElementById('discogs-results');
@@ -900,6 +1088,155 @@ async function exportToDiscogs(mode) {
 }
 
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ── DYMO direct printing ─────────────────────────────────
+let dymoReady = false;
+let detectedPrinter = null;
+
+async function detectDymoPrinter() {
+  const statusEl = document.getElementById('dymo-printer-status');
+  const printBtn = document.getElementById('btn-dymo-print');
+  dymoReady = false;
+  detectedPrinter = null;
+  printBtn.disabled = true;
+
+  if (typeof dymo === 'undefined' || !dymo?.label?.framework) {
+    statusEl.innerHTML = 'DYMO Connect not installed — <a href="https://www.dymo.com/software.html" target="_blank" style="color:var(--amber)">download here</a>';
+    return;
+  }
+
+  statusEl.innerHTML = '<span style="color:var(--amber)">detecting…</span>';
+
+  try {
+    const initResult = dymo.label.framework.init();
+    if (initResult && typeof initResult.then === 'function') await initResult;
+  } catch {
+    statusEl.textContent = 'DYMO Connect not running — open DYMO Connect first';
+    return;
+  }
+
+  try {
+    const printers = dymo.label.framework.getPrinters();
+    const labelWriters = printers.filter(p => p.printerType === 'LabelWriterPrinter');
+
+    if (!labelWriters.length) {
+      statusEl.textContent = 'No LabelWriter connected';
+      return;
+    }
+
+    detectedPrinter = labelWriters[0];
+    dymoReady = true;
+
+    // Match detected model to dropdown
+    const modelSelect = document.getElementById('dymo-model');
+    const detected = (detectedPrinter.modelName || detectedPrinter.name || '').toLowerCase();
+    const modelMap = [
+      ['550 turbo', 'LabelWriter 550 Turbo'],
+      ['550',       'LabelWriter 550'],
+      ['450 turbo', 'LabelWriter 450 Turbo'],
+      ['4xl',       'LabelWriter 4XL'],
+      ['wireless',  'LabelWriter Wireless'],
+      ['450',       'LabelWriter 450'],
+    ];
+    for (const [fragment, optText] of modelMap) {
+      if (detected.includes(fragment)) {
+        for (const opt of modelSelect.options) {
+          if (opt.text === optText) { modelSelect.value = opt.value; break; }
+        }
+        break;
+      }
+    }
+
+    // LabelWriter 550 series: attempt to read installed roll
+    if (detected.includes('550')) {
+      try {
+        const info = dymo.label.framework.getPrinterInfo(detectedPrinter.name);
+        const labelName = info?.installedLabel?.name || '';
+        const partMap = { '30252': '28x89', '30323': '54x101', '30257': '54x54', '30336': '25x54', '30332': '19x51', '30370': '57x101' };
+        for (const [part, val] of Object.entries(partMap)) {
+          if (labelName.includes(part)) {
+            document.getElementById('dymo-size').value = val;
+            break;
+          }
+        }
+        if (labelName) {
+          statusEl.innerHTML = `<span style="color:var(--green)">●</span> ${esc(detectedPrinter.name)} · ${esc(labelName)}`;
+          updateLabelSettings();
+          printBtn.disabled = false;
+          return;
+        }
+      } catch {}
+    }
+
+    updateLabelSettings();
+    statusEl.innerHTML = `<span style="color:var(--green)">●</span> ${esc(detectedPrinter.name)} — ready`;
+    printBtn.disabled = false;
+  } catch (e) {
+    statusEl.textContent = 'Could not query printers: ' + e.message;
+  }
+}
+
+function buildLabelXml(artist, album, tracks, partLabel, wMm, hMm) {
+  const toTwips = mm => Math.round(mm * 56.693);
+  const W = toTwips(wMm);
+  const H = toTwips(hMm);
+  const pad = Math.round(Math.min(W, H) * 0.05);
+
+  const titleLine = artist + ' \u2014 ' + album + (partLabel ? ' ' + partLabel : '');
+  const trackLines = tracks.map(t => {
+    const pos = t.position ? t.position + '. ' : '';
+    const meta = [t.bpm ? t.bpm + ' BPM' : '', t.key || '', t.duration || ''].filter(Boolean).join(' \u00b7 ');
+    return pos + t.title + (meta ? '  ' + meta : '');
+  });
+  const rawText = [titleLine, '\u2500'.repeat(18), ...trackLines].join('\n');
+  const xmlText = rawText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '&#xA;');
+
+  return `<?xml version="1.0" encoding="utf-8"?><DieCutLabel Version="8.0" Units="twips"><PaperOrientation>Portrait</PaperOrientation><Id>Address</Id><PaperName>30252 Address</PaperName><DrawCommands><RoundRectangle X="0" Y="0" Width="${W}" Height="${H}" Rx="180" Ry="180" /></DrawCommands><ObjectInfo><TextObject><Name>LABEL</Name><ForeColor Alpha="255" Red="0" Green="0" Blue="0" /><BackColor Alpha="0" Red="255" Green="255" Blue="255" /><LinkedObjectName></LinkedObjectName><Rotation>Rotation0</Rotation><IsMirrored>False</IsMirrored><IsVariable>False</IsVariable><HorizontalAlignment>Left</HorizontalAlignment><VerticalAlignment>Top</VerticalAlignment><TextFitMode>ShrinkToFit</TextFitMode><UseFullFontHeight>True</UseFullFontHeight><Verticalized>False</Verticalized><StyledText><Element><String>${xmlText}</String><Attributes><Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" StrikeThrough="False" /><ForeColor Alpha="255" Red="0" Green="0" Blue="0" /></Attributes></Element></StyledText></TextObject><ObjectLayout><DockMode>None</DockMode><Absolute><X>${pad}</X><Y>${pad}</Y><Width>${W - pad * 2}</Width><Height>${H - pad * 2}</Height></Absolute></ObjectLayout></ObjectInfo></DieCutLabel>`;
+}
+
+async function printDymoLabels() {
+  if (!dymoReady || !detectedPrinter) {
+    alert('No printer detected. Click \u21ba Detect first.');
+    return;
+  }
+  if (!collection.length) { alert('No tracks to print.'); return; }
+
+  const albums = [];
+  const seen = new Map();
+  for (const t of collection) {
+    const key = t.artist + '||' + t.album;
+    if (!seen.has(key)) { seen.set(key, []); albums.push({ info: t, tracks: seen.get(key) }); }
+    seen.get(key).push(t);
+  }
+
+  const TRACKS_PER_STICKER = 5;
+  const { w, h } = getLabelDimensions();
+  const printStatusEl = document.getElementById('dymo-print-status');
+  printStatusEl.textContent = 'Printing\u2026';
+
+  let count = 0;
+  try {
+    for (const { info: a, tracks } of albums) {
+      const chunks = [];
+      for (let i = 0; i < tracks.length; i += TRACKS_PER_STICKER) chunks.push(tracks.slice(i, i + TRACKS_PER_STICKER));
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const partLabel = chunks.length > 1 ? `(${ci + 1}/${chunks.length})` : '';
+        const xml = buildLabelXml(a.artist, a.album, chunks[ci], partLabel, w, h);
+        const label = dymo.label.framework.openLabelXml(xml);
+        label.print(detectedPrinter.name);
+        count++;
+      }
+    }
+    printStatusEl.textContent = `Sent ${count} label${count !== 1 ? 's' : ''} to ${detectedPrinter.name}`;
+    setTimeout(() => { printStatusEl.textContent = ''; }, 5000);
+  } catch (e) {
+    printStatusEl.textContent = 'Print failed: ' + e.message;
+  }
+}
 </script>
 </body>
 </html>
