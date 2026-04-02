@@ -37,6 +37,7 @@ app.post('/api/search', async (req, res) => {
       format: 'vinyl',
       per_page: Math.min(Math.max(parseInt(perPage) || 10, 1), 25)
     });
+    if (filters.artist)  params.set('artist',  filters.artist);
     if (filters.label)   params.set('label',   filters.label);
     if (filters.country) params.set('country',  filters.country);
     if (filters.year)    params.set('year',     filters.year);
@@ -67,7 +68,7 @@ app.post('/api/search', async (req, res) => {
           const detailRes = await fetch(`https://api.discogs.com/releases/${release.id}`, {
             headers: {
               'Authorization': `Discogs token=${authToken}`,
-              'User-Agent': 'VinylManager/1.0'
+              'User-Agent': 'ProjectPosterity/1.0'
             }
           });
           const detail = await detailRes.json();
@@ -131,102 +132,9 @@ app.post('/api/search', async (req, res) => {
   }
 });
 
-// ── Spotify helpers ──────────────────────────────────────
-let _spotifyToken = null;
-let _spotifyTokenExpiry = 0;
-
-async function getSpotifyToken() {
-  if (_spotifyToken && Date.now() < _spotifyTokenExpiry) return _spotifyToken;
-  const id = process.env.SPOTIFY_CLIENT_ID;
-  const secret = process.env.SPOTIFY_CLIENT_SECRET;
-  if (!id || !secret) return null;
-  const creds = Buffer.from(`${id}:${secret}`).toString('base64');
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'grant_type=client_credentials'
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  _spotifyToken = data.access_token;
-  _spotifyTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return _spotifyToken;
-}
-
 const PITCH_CLASSES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-async function spotifyAudioFeatures(trackIds, token) {
-  const featRes = await fetch(`https://api.spotify.com/v1/audio-features?ids=${trackIds.join(',')}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  if (!featRes.ok) return [];
-  return (await featRes.json()).audio_features || [];
-}
-
-async function enrichWithSpotify(artist, album, tracks, token) {
-  // ── Try album search first (most efficient: 3 total API calls) ──
-  const albumRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`album:${album} artist:${artist}`)}&type=album&limit=1`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  const albumData = albumRes.ok ? await albumRes.json() : null;
-  const spotifyAlbum = albumData?.albums?.items?.[0];
-
-  if (spotifyAlbum) {
-    const tracksRes = await fetch(`https://api.spotify.com/v1/albums/${spotifyAlbum.id}/tracks?limit=50`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (tracksRes.ok) {
-      const spotifyTracks = (await tracksRes.json()).items || [];
-      const features = await spotifyAudioFeatures(spotifyTracks.map(t => t.id), token);
-      const featureMap = {};
-      spotifyTracks.forEach((t, i) => { featureMap[norm(t.name)] = features[i]; });
-
-      const mapped = tracks.map(track => {
-        const feat = featureMap[norm(track.title)];
-        if (!feat || feat.key === undefined) return null;
-        return {
-          title: track.title,
-          bpm: Math.round(feat.tempo),
-          key: feat.key >= 0 ? `${PITCH_CLASSES[feat.key]} ${feat.mode === 1 ? 'major' : 'minor'}` : ''
-        };
-      });
-      // Return if we enriched at least one track
-      if (mapped.some(r => r)) return mapped;
-    }
-  }
-
-  // ── Fallback: search each track individually (handles singles/EPs) ──
-  return await Promise.all(tracks.map(async track => {
-    // Use track-level artist from Discogs if available, otherwise fall back to release artist
-    const trackArtist = track.artist || artist;
-    // Try progressively looser queries until something is found
-    const queries = [
-      `track:${track.title} artist:${trackArtist}`,
-      `${track.title} ${trackArtist}`,
-      track.title  // title only — catches releases where Spotify artist/album name differs from Discogs
-    ];
-    let spotifyTrack = null;
-    for (const q of queries) {
-      const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) continue;
-      spotifyTrack = (await res.json()).tracks?.items?.[0];
-      if (spotifyTrack) break;
-    }
-    if (!spotifyTrack) return null;
-
-    const [feat] = await spotifyAudioFeatures([spotifyTrack.id], token);
-    if (!feat || feat.key === undefined) return null;
-    return {
-      title: track.title,
-      bpm: Math.round(feat.tempo),
-      key: feat.key >= 0 ? `${PITCH_CLASSES[feat.key]} ${feat.mode === 1 ? 'major' : 'minor'}` : ''
-    };
-  }));
-}
 
 // ── Camelot wheel conversion ──────────────────────────────
 const CAMELOT_MAP = {
@@ -427,6 +335,47 @@ app.post('/api/discogs/verify', async (req, res) => {
       avatar_url: d.avatar_url || '',
       num_collection: d.num_collection || 0,
       num_wantlist: d.num_wantlist || 0
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Fetch paginated collection
+app.get('/api/discogs/collection', async (req, res) => {
+  const { username, token, page = 1, perPage = 25 } = req.query;
+  const authToken = token || DISCOGS_TOKEN;
+  if (!authToken || !username) return res.status(400).json({ error: 'Username and token required' });
+  try {
+    const r = await fetch(
+      `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases?page=${page}&per_page=${perPage}&sort=added&sort_order=desc`,
+      { headers: { 'Authorization': `Discogs token=${authToken}`, 'User-Agent': 'VinylManager/1.0' } }
+    );
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      return res.status(r.status).json({ error: err.message || 'Failed to fetch collection' });
+    }
+    const data = await r.json();
+    res.json({
+      items: (data.releases || []).map(w => {
+        const info = w.basic_information;
+        return {
+          discogsId: info.id,
+          artist: (info.artists || []).map(a => a.name).join(', ').replace(/\s*\(\d+\)/g, ''),
+          album: info.title,
+          year: info.year || '',
+          genre: (info.genres || []).join(', '),
+          styles: (info.styles || []).join(', '),
+          label: (info.labels || []).map(l => l.name).join(', '),
+          thumb: info.thumb || info.cover_image || '',
+          formats: (info.formats || []).map(f => f.name).join(', '),
+          discogsUrl: `https://www.discogs.com/release/${info.id}`
+        };
+      }),
+      pagination: {
+        page: data.pagination?.page || 1,
+        pages: data.pagination?.pages || 1,
+        items: data.pagination?.items || 0,
+        perPage: data.pagination?.per_page || 25
+      }
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

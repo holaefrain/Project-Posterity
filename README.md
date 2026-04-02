@@ -1,39 +1,86 @@
 # Project Posterity
 
-With hopes of maintaining my vinyl collection for generations on end, I've created a vinyl collection manager with Discogs integration, DYMO label printing, and manual BPM/key tracking using the Camelot wheel.
+A vinyl collection manager with Discogs integration, DYMO label printing, and BPM/key tracking via the Camelot wheel.
+
+---
+
+## Requirements
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| [Node.js](https://nodejs.org) | 18+ | Uses ESM modules and `--import` flag |
+| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | any recent | Optional — only needed for YouTube audio analysis fallback |
+| [FFmpeg](https://ffmpeg.org/download.html) | any recent | Optional — required alongside yt-dlp for audio analysis |
+| [DYMO Connect](https://www.dymo.com/support/dymo-connect-software-dymo-label-v-8-support.html) | desktop app | Optional — only needed for direct label printing |
+
+> **yt-dlp** and **ffmpeg** are only used as a fallback when Beatport doesn't have BPM/key data for a track. The app works fully without them — you can always enter BPM and key manually.
 
 ---
 
 ## Setup
 
-### 1. Install dependencies
+### 1. Clone and install
+
 ```bash
+git clone https://github.com/your-username/project-posterity.git
+cd project-posterity
 npm install
 ```
 
 ### 2. Create a `.env` file
+
 ```
 DISCOGS_TOKEN=your_discogs_personal_access_token
 DISCOGS_USERNAME=your_discogs_username
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 ```
 
-Get your Discogs token at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) → Generate new token.
+Get your token at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) → **Generate new token**.
 
-Get Spotify credentials at [developer.spotify.com](https://developer.spotify.com) → Create an app (Client Credentials flow — no redirect URI needed).
+> Both values are optional — if omitted, you can enter them directly in the app's Discogs tab UI.
 
-> `DISCOGS_TOKEN` and `DISCOGS_USERNAME` in `.env` skip the token form in the app. If not set, you can enter them directly in the UI.
+### 3. Start the server
 
-### 3. Run the app
 ```bash
 npm start
 ```
-Then open **http://localhost:3000** in your browser.
 
-For development with auto-restart:
+Open **http://localhost:3000** in your browser.
+
+For development with auto-restart on file changes:
+
 ```bash
 npm run dev
+```
+
+---
+
+## Installing system dependencies
+
+### yt-dlp
+
+```bash
+# macOS (Homebrew)
+brew install yt-dlp
+
+# Linux
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+
+# Windows — download yt-dlp.exe from https://github.com/yt-dlp/yt-dlp/releases
+# and place it somewhere on your PATH
+```
+
+### FFmpeg
+
+```bash
+# macOS (Homebrew)
+brew install ffmpeg
+
+# Ubuntu / Debian
+sudo apt install ffmpeg
+
+# Windows — download from https://ffmpeg.org/download.html
+# and add the bin/ folder to your PATH
 ```
 
 ---
@@ -41,16 +88,15 @@ npm run dev
 ## Features
 
 ### Search
-- Search by artist, album, or track name via the **Discogs** database
-- Returns up to 4 vinyl releases with full tracklists, artwork, genre, label, and year
-- Each track includes position, title, and per-track artist where available
-- Click a result to add the entire album to your collection
+- Search the Discogs database by artist, album, or track name
+- Returns up to 25 vinyl releases with full tracklists, artwork, genre, label, and year
+- Click a result to add the full album (all tracks) to your local collection
 
 ### Collection
-- View all tracks in a sortable table
+- Sortable table of all tracks across every album you've added
 - Columns: Artist, Album, Track, Year, Genre, Label, Position, Duration, BPM, Key
-- **BPM and Key** — enter manually using the Camelot wheel autocomplete (e.g. `8A`, `8A — A minor`, or `A minor`)
-- Remove individual tracks with ×, or clear all
+- **BPM and Key** — enter manually using the Camelot wheel autocomplete (type `8A`, `8A — A minor`, or `A minor`)
+- Remove individual tracks with ×, or clear the entire collection
 
 ### Export
 
@@ -61,24 +107,32 @@ Full metadata for every track — opens directly in Excel or Numbers.
 One row per track, formatted for import via **File → Import Data** in DYMO Connect.
 
 #### Print Labels (direct printing)
-Print vinyl stickers directly from the browser without leaving the app:
+Print vinyl stickers directly from the browser:
 
 1. Connect your LabelWriter via USB (or WiFi for the Wireless model)
-2. Open the **DYMO Connect** desktop app (must be running)
-3. Go to the **Export** tab — the printer auto-detects and the model dropdown updates
-4. Select your label roll size (LabelWriter 550 series can auto-detect the installed roll)
+2. Open the **DYMO Connect** desktop app — it must be running in the background
+3. Go to the **Export** tab — the app auto-detects the printer
+4. Select your label roll size (LabelWriter 550 series auto-detects the installed roll)
 5. Click **Print labels** — one sticker per album, up to 5 tracks per sticker
 6. Multi-page albums get split stickers labeled `(1/2)`, `(2/2)`, etc.
 
-Each sticker shows: artist, album, track position + title, and a meta line with BPM · key · duration.
+Each sticker shows: artist, album, track position + title, and BPM · key · duration.
 
-> The DYMO Label Framework SDK is bundled locally at `public/js/DYMO.Label.Framework.latest.js` — no internet connection required.
+> The DYMO Label Framework SDK is bundled at `public/js/DYMO.Label.Framework.latest.js` — no internet connection required for printing.
 
-### Discogs Export
-- Add albums to your Discogs **Wantlist** or **Collection** in one click
-- Uses the Discogs ID from the search result when available, otherwise searches by artist + title
-- Rate-limited to stay within Discogs API rules
-- Token and username can be set in `.env` or entered in the Discogs tab
+### Discogs Tab
+- **Connect** with your Discogs username and token (or rely on `.env` values to auto-connect)
+- **Export to Discogs** — push your local collection to your Discogs Wantlist or Collection in one click
+- **Wantlist** (left column) — browse your Discogs wantlist, paginated; click any item to pull its full tracklist and add it to your local collection
+- **Your Collection** (right column) — browse your Discogs collection, paginated; links back to each release on Discogs
+
+### BPM / Key Detection
+BPM and key are fetched automatically when you click **Enrich BPM & Key** on a search result:
+
+1. **Beatport** is checked first (scraped from search results — works for most electronic releases)
+2. **YouTube audio analysis** is used as a fallback (requires `yt-dlp` + `ffmpeg`) — downloads the first 90 seconds of a linked video, runs tempo detection and a Krumhansl-Schmuckler key analysis
+
+If neither source returns a result, enter BPM and key manually in the Collection table.
 
 ---
 
@@ -103,20 +157,16 @@ Each sticker shows: artist, album, track position + title, and a meta line with 
 
 ---
 
-## BPM / Key
-Automated BPM and key detection is not currently active (Spotify's audio-features endpoint was deprecated for new apps in November 2024). Enter BPM and key manually in the Collection table. The key field has full Camelot wheel autocomplete — type a code like `8A` or a key name like `A minor`. This is a work in progress. As soon as we find a new alternative, we will try our best to get it up and working. 
-
----
-
 ## File Structure
 ```
 project-posterity/
 ├── server.js               # Express API server
+├── audioAnalysis.js        # BPM/key detection via yt-dlp + ffmpeg
 ├── public/
-│   ├── index.html          # Full frontend app
+│   ├── index.html          # Full frontend (single-page app)
 │   └── js/
-│       └── DYMO.Label.Framework.latest.js  # DYMO SDK (local copy)
-├── .env                    # Your secrets (not committed)
+│       └── DYMO.Label.Framework.latest.js  # DYMO SDK (bundled, no CDN needed)
+├── .env                    # Your secrets — never committed
 ├── package.json
 └── README.md
 ```
@@ -126,5 +176,9 @@ project-posterity/
 |--------|------|-------------|
 | GET  | `/api/config` | Returns server-side config flags (no secrets exposed) |
 | POST | `/api/search` | Search Discogs by query string |
-| POST | `/api/enrich` | Returns BPM/key for tracks (currently returns empty — manual input) |
+| POST | `/api/enrich` | Fetch BPM/key via Beatport or YouTube audio analysis |
+| POST | `/api/discogs/verify` | Verify Discogs credentials, returns user profile |
+| GET  | `/api/discogs/wantlist` | Paginated wantlist for a user |
+| GET  | `/api/discogs/collection` | Paginated Discogs collection for a user |
+| GET  | `/api/discogs/release/:id` | Full tracklist + videos for a single release |
 | POST | `/api/discogs/export` | Add albums to Discogs wantlist or collection |
