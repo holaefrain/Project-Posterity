@@ -22,7 +22,7 @@ A vinyl collection manager with Discogs integration, DYMO label printing, and BP
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/project-posterity.git
+git clone https://github.com/holaefrain/Project-Posterity.git
 cd project-posterity
 npm install
 ```
