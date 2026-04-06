@@ -757,6 +757,22 @@
           <span style="color:var(--muted);font-size:12px">×</span>
           <input type="number" id="custom-h" placeholder="H" min="10" max="300" style="width:54px" oninput="updateLabelSettings()" />
         </div>
+        <div class="field-row">
+          <span class="field-label">Number of tracks per label</span>
+          <input type="number" id="tracks-per-label" min="1" max="10" placeholder="Auto" style="width:60px" oninput="updateLabelSettings()" />
+        </div>
+        <div class="field-row" style="flex-wrap:wrap;gap:8px 16px">
+          <span class="field-label" style="width:100%">Track info</span>
+          <label style="font-size:11px;color:var(--cream-dim);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="show-bpm" checked onchange="updateLabelSettings()" /> BPM</label>
+          <label style="font-size:11px;color:var(--cream-dim);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="show-key" checked onchange="updateLabelSettings()" /> Key</label>
+          <label style="font-size:11px;color:var(--cream-dim);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="show-duration" checked onchange="updateLabelSettings()" /> Duration</label>
+        </div>
+        <div class="field-row" style="flex-wrap:wrap;gap:8px 16px">
+          <span class="field-label" style="width:100%">Footer</span>
+          <label style="font-size:11px;color:var(--cream-dim);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="show-year" checked onchange="updateLabelSettings()" /> Year</label>
+          <label style="font-size:11px;color:var(--cream-dim);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="show-genre" checked onchange="updateLabelSettings()" /> Genre</label>
+          <label style="font-size:11px;color:var(--cream-dim);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="show-label-field" checked onchange="updateLabelSettings()" /> Label</label>
+        </div>
         <div class="field-row" style="gap:8px">
           <span class="field-label">Printer</span>
           <span id="dymo-printer-status" style="font-size:11px;color:var(--muted)">Not detected</span>
@@ -1244,7 +1260,7 @@ function renderExport() {
   }
 
   const { w, h } = getLabelDimensions();
-  const { maxTracks, showMeta } = getLabelLayout(w, h);
+  const { maxTracks, showMeta, showBpm, showKey, showDuration, showYear, showGenre, showLabelText } = getLabelOptions(w, h);
   const pw = Math.round(w * SCALE), ph = Math.round(h * SCALE);
   const baseFontScale = Math.min(w, h) / 54;
 
@@ -1260,7 +1276,7 @@ function renderExport() {
         <div class="dl-divider"></div>
         <div class="dl-tracklist">
           ${chunk.map(t => {
-            const meta = [t.bpm ? `${t.bpm} BPM` : '', t.key || '', t.duration || ''].filter(Boolean).join(' · ');
+            const meta = [showBpm && t.bpm ? `${t.bpm} BPM` : '', showKey ? (t.key || '') : '', showDuration ? (t.duration || '') : ''].filter(Boolean).join(' · ');
             return `<div class="dl-track-row">
               <div class="dl-track-title">
                 ${t.position ? `<span class="dl-pos">${esc(t.position)}</span>` : ''}
@@ -1272,8 +1288,8 @@ function renderExport() {
         </div>
         <div class="dl-divider"></div>
         <div class="dl-meta">
-          <span>${a.year}${a.genre ? ' · ' + esc(a.genre) : ''}</span>
-          <span>${esc(a.label)}</span>
+          ${(showYear || showGenre) ? `<span>${[showYear ? a.year : '', showGenre ? esc(a.genre) : ''].filter(Boolean).join(' · ')}</span>` : ''}
+          ${showLabelText && a.label ? `<span>${esc(a.label)}</span>` : ''}
         </div>
       </div>`);
   });
@@ -1703,13 +1719,36 @@ function getLabelLayout(wMm, hMm) {
   return { maxTracks, showMeta, fonts };
 }
 
-function buildLabelXml(info, tracks, partLabel, wMm, hMm) {
+function getLabelOptions(wMm, hMm) {
+  const layout = getLabelLayout(wMm, hMm);
+  const customMax = parseInt(document.getElementById('tracks-per-label')?.value);
+  return {
+    maxTracks: (customMax >= 1 && customMax <= 10) ? customMax : layout.maxTracks,
+    showMeta: layout.showMeta,
+    fonts: layout.fonts,
+    showBpm: document.getElementById('show-bpm')?.checked ?? true,
+    showKey: document.getElementById('show-key')?.checked ?? true,
+    showDuration: document.getElementById('show-duration')?.checked ?? true,
+    showYear: document.getElementById('show-year')?.checked ?? true,
+    showGenre: document.getElementById('show-genre')?.checked ?? true,
+    showLabelText: document.getElementById('show-label-field')?.checked ?? true,
+  };
+}
+
+function buildLabelXml(info, tracks, partLabel, wMm, hMm, opts) {
   const toTwips = mm => Math.round(mm * 56.693);
   const W = toTwips(wMm);
   const H = toTwips(hMm);
   const pad = Math.round(Math.min(W, H) * 0.05);
 
-  const { fonts, showMeta } = getLabelLayout(wMm, hMm);
+  const resolved = opts || getLabelLayout(wMm, hMm);
+  const { fonts, showMeta } = resolved;
+  const showBpm = resolved.showBpm ?? true;
+  const showKey = resolved.showKey ?? true;
+  const showDuration = resolved.showDuration ?? true;
+  const showYear = resolved.showYear ?? true;
+  const showGenre = resolved.showGenre ?? true;
+  const showLabelText = resolved.showLabelText ?? true;
   const paperName = getPaperName(wMm, hMm);
 
   const xmlEsc = s => String(s || '')
@@ -1735,21 +1774,22 @@ function buildLabelXml(info, tracks, partLabel, wMm, hMm) {
     const pos = t.position ? `${t.position}. ` : '';
     parts.push(elem(pos + t.title, fonts.title));
     if (showMeta) {
-      const meta = [t.bpm ? `${t.bpm} BPM` : '', t.key || '', t.duration || ''].filter(Boolean).join(' \u00b7 ');
+      const meta = [showBpm && t.bpm ? `${t.bpm} BPM` : '', showKey ? (t.key || '') : '', showDuration ? (t.duration || '') : ''].filter(Boolean).join(' \u00b7 ');
       if (meta) parts.push(elem(meta, fonts.meta));
     }
   }
 
   parts.push(elem(divider, fonts.divider));
 
-  const yearGenre = [info.year, info.genre].filter(Boolean).join(' \u00b7 ');
-  if (yearGenre && info.label) {
+  const yearGenre = [showYear ? info.year : '', showGenre ? info.genre : ''].filter(Boolean).join(' \u00b7 ');
+  const labelLine = showLabelText ? info.label : '';
+  if (yearGenre && labelLine) {
     parts.push(elem(yearGenre, fonts.footer));
-    parts.push(elem(info.label, fonts.footer, false, true));
+    parts.push(elem(labelLine, fonts.footer, false, true));
   } else if (yearGenre) {
     parts.push(elem(yearGenre, fonts.footer, false, true));
-  } else if (info.label) {
-    parts.push(elem(info.label, fonts.footer, false, true));
+  } else if (labelLine) {
+    parts.push(elem(labelLine, fonts.footer, false, true));
   }
 
   const styledText = `<StyledText>${parts.join('')}</StyledText>`;
@@ -1787,7 +1827,8 @@ async function printDymoLabels() {
   }
 
   const { w, h } = getLabelDimensions();
-  const { maxTracks } = getLabelLayout(w, h);
+  const opts = getLabelOptions(w, h);
+  const { maxTracks } = opts;
   const printStatusEl = document.getElementById('dymo-print-status');
   printStatusEl.textContent = 'Printing\u2026';
 
@@ -1798,7 +1839,7 @@ async function printDymoLabels() {
       for (let i = 0; i < tracks.length; i += maxTracks) chunks.push(tracks.slice(i, i + maxTracks));
       for (let ci = 0; ci < chunks.length; ci++) {
         const partLabel = chunks.length > 1 ? `(${ci + 1}/${chunks.length})` : '';
-        const xml = buildLabelXml(a, chunks[ci], partLabel, w, h);
+        const xml = buildLabelXml(a, chunks[ci], partLabel, w, h, opts);
         const label = dymo.label.framework.openLabelXml(xml);
         label.print(detectedPrinter.name);
         count++;
