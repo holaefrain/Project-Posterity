@@ -118,7 +118,9 @@ Print vinyl stickers directly from the browser:
 
 Each sticker shows: artist, album, track position + title, and BPM · key · duration.
 
-> The DYMO Label Framework SDK is bundled at `public/js/DYMO.Label.Framework.latest.js` — no internet connection required for printing.
+The DYMO Label Framework SDK is bundled at `public/js/DYMO.Label.Framework.latest.js` — no internet connection required for printing.
+
+> I broke this on accident, fixing soon. Just some weird bug with the printers I'm testing with.
 
 ### Discogs Tab
 - **Connect** with your Discogs username and token (or rely on `.env` values to auto-connect)
@@ -166,6 +168,7 @@ project-posterity/
 │   ├── index.html          # Full frontend (single-page app)
 │   └── js/
 │       └── DYMO.Label.Framework.latest.js  # DYMO SDK (bundled, no CDN needed)
+├── .gitignore              # Please put .env file so you don't commit
 ├── .env                    # Your secrets — never committed
 ├── package.json
 └── README.md
