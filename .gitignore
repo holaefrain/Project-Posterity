@@ -2,7 +2,7 @@ node_modules/
 .env
 *.xlsx
 *.csv
-*.claude
+*.claude #yes, i used claude to test some code
 *.log
 *.json
 *.txt
