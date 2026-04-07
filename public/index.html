@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vinyl Manager</title>
+<title>Project Posterity</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <style>
@@ -573,6 +573,59 @@
   }
   .discogs-user-name { font-size: 15px; font-weight: 500; color: var(--cream); }
   .discogs-user-stats { font-size: 11px; color: var(--cream-dim); margin-top: 4px; letter-spacing: 0.03em; }
+
+  /* Discogs two-column layout */
+  .discogs-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .discogs-col {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .discogs-col-header {
+    font-family: var(--serif);
+    font-size: 20px;
+    color: var(--cream);
+    margin-bottom: 10px;
+  }
+  .discogs-col-pagination {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 16px;
+    align-items: center;
+  }
+  /* Compact cards inside discogs columns */
+  .discogs-col .result-card {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .discogs-col .rc-thumb,
+  .discogs-col .rc-thumb-placeholder {
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
+  .discogs-col .rc-left { gap: 10px; }
+  .discogs-col .rc-title {
+    font-size: 13px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+  .discogs-col .rc-meta { font-size: 10px; margin-bottom: 3px; }
+  .discogs-col .rc-tracks { font-size: 10px; }
+  @media (max-width: 720px) {
+    .discogs-columns { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -610,28 +663,33 @@
     </div>
 
     <div class="search-bar">
-      <input type="text" id="search-input" placeholder="e.g. Massive Attack Mezzanine" />
+      <input type="text" id="search-input" placeholder="Search for records in the abyss..." />
       <button class="btn primary" id="search-btn" onclick="doSearch()">Search</button>
       <button class="btn" id="filter-toggle" onclick="toggleFilters()" title="Filters">⚙ Filters</button>
     </div>
 
+    <!-- FILTERS -->
     <div class="filter-panel" id="filter-panel">
       <div class="filter-grid">
         <div class="filter-field">
+          <label class="field-label">Artist</label>
+          <input type="text" id="f-artist" placeholder="Gaszia, Paranoid London, etc." />
+        </div>
+        <div class="filter-field">
           <label class="field-label">Label</label>
-          <input type="text" id="f-label" placeholder="e.g. Blue Note" />
+          <input type="text" id="f-label" placeholder="Zoobieville, ETA45MINS, etc." />
         </div>
         <div class="filter-field">
           <label class="field-label">Country</label>
-          <input type="text" id="f-country" placeholder="e.g. US" />
+          <input type="text" id="f-country" placeholder="US, UK, etc." />
         </div>
         <div class="filter-field">
           <label class="field-label">Year</label>
-          <input type="text" id="f-year" placeholder="e.g. 1994" />
+          <input type="text" id="f-year" placeholder="1994" />
         </div>
         <div class="filter-field">
           <label class="field-label">Genre</label>
-          <input type="text" id="f-genre" placeholder="e.g. Electronic" />
+          <input type="text" id="f-genre" placeholder="Electronic, Rock, Jazz, etc." />
         </div>
         <div class="filter-field">
           <label class="field-label">Results</label>
@@ -760,25 +818,41 @@
     <div id="dsc-connected" style="display:none">
       <div class="discogs-user-card" id="dsc-user-card"></div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="font-family:var(--serif);font-size:22px;color:var(--cream)">Wantlist</h2>
+      <!-- Export to Discogs — top -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+        <div>
+          <h2 style="font-family:var(--serif);font-size:22px;color:var(--cream);margin-bottom:6px">Export to Discogs</h2>
+          <p style="font-size:12px;color:var(--cream-dim);line-height:1.6">Push your local collection to your Discogs wantlist or collection.</p>
+        </div>
         <button class="btn" style="font-size:11px;padding:6px 14px" onclick="disconnectDiscogs()">↩ Disconnect</button>
       </div>
-
-      <div class="status-line" id="wantlist-status"></div>
-      <div class="results-grid" id="wantlist-area"></div>
-      <div id="wantlist-pagination" style="display:flex;gap:10px;justify-content:center;margin-top:20px;align-items:center"></div>
-
-      <hr class="divider" style="margin-top:36px">
-
-      <h2 style="font-family:var(--serif);font-size:22px;color:var(--cream);margin-bottom:8px">Export to Discogs</h2>
-      <p style="font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:16px">Push your local collection to your Discogs wantlist or collection.</p>
-      <div class="btn-row" style="margin-bottom:20px">
+      <div class="btn-row" style="margin-bottom:12px">
         <button class="btn success" onclick="exportToDiscogs('wantlist')">Add to Wantlist</button>
         <button class="btn" onclick="exportToDiscogs('collection')">Add to Collection</button>
       </div>
       <div class="status-line" id="discogs-status"></div>
-      <div class="result-list" id="discogs-results"></div>
+      <div class="result-list" id="discogs-results" style="margin-bottom:28px"></div>
+
+      <hr class="divider" style="margin-bottom:28px">
+
+      <!-- Two-column: wantlist left, collection right -->
+      <div class="discogs-columns">
+        <!-- LEFT: Wantlist -->
+        <div class="discogs-col">
+          <h2 class="discogs-col-header">Wantlist</h2>
+          <div class="status-line" id="wantlist-status"></div>
+          <div class="results-grid" id="wantlist-area"></div>
+          <div class="discogs-col-pagination" id="wantlist-pagination"></div>
+        </div>
+
+        <!-- RIGHT: Your Discogs Collection -->
+        <div class="discogs-col">
+          <h2 class="discogs-col-header">Your Collection</h2>
+          <div class="status-line" id="discogs-collection-status"></div>
+          <div class="results-grid" id="discogs-collection-area"></div>
+          <div class="discogs-col-pagination" id="discogs-collection-pagination"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -875,7 +949,7 @@ function toggleFilters() {
 }
 
 function clearFilters() {
-  ['f-label','f-country','f-year','f-genre'].forEach(id => document.getElementById(id).value = '');
+  ['f-artist','f-label','f-country','f-year','f-genre'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-per-page').value = '10';
 }
 
@@ -892,6 +966,7 @@ async function doSearch() {
   notice.classList.remove('visible');
 
   const filters = {
+    artist:  document.getElementById('f-artist').value.trim(),
     label:   document.getElementById('f-label').value.trim(),
     country: document.getElementById('f-country').value.trim(),
     year:    document.getElementById('f-year').value.trim(),
@@ -1168,18 +1243,16 @@ function renderExport() {
     seen.get(key).push(t);
   }
 
-  const TRACKS_PER_STICKER = 5;
+  const { w, h } = getLabelDimensions();
+  const { maxTracks, showMeta } = getLabelLayout(w, h);
+  const pw = Math.round(w * SCALE), ph = Math.round(h * SCALE);
+  const baseFontScale = Math.min(w, h) / 54;
 
   const labels = albums.flatMap(({ info: a, tracks }) => {
-    // Split into chunks of 5
     const chunks = [];
-    for (let i = 0; i < tracks.length; i += TRACKS_PER_STICKER) {
-      chunks.push(tracks.slice(i, i + TRACKS_PER_STICKER));
+    for (let i = 0; i < tracks.length; i += maxTracks) {
+      chunks.push(tracks.slice(i, i + maxTracks));
     }
-    const { w, h } = getLabelDimensions();
-    const pw = Math.round(w * SCALE), ph = Math.round(h * SCALE);
-    const isPortrait = h >= w;
-    const baseFontScale = Math.min(w, h) / 54;
     return chunks.map((chunk, ci) => `
       <div class="dymo-label" style="width:${pw}px;height:${ph}px;padding:${Math.round(ph*0.05)}px ${Math.round(pw*0.07)}px">
         <div class="dl-artist" style="font-size:${Math.round(13*baseFontScale)}px">${esc(a.artist)}</div>
@@ -1193,7 +1266,7 @@ function renderExport() {
                 ${t.position ? `<span class="dl-pos">${esc(t.position)}</span>` : ''}
                 <span class="dl-track">${esc(t.title)}</span>
               </div>
-              ${meta ? `<div class="dl-track-meta">${esc(meta)}</div>` : ''}
+              ${showMeta && meta ? `<div class="dl-track-meta">${esc(meta)}</div>` : ''}
             </div>`;
           }).join('')}
         </div>
@@ -1232,10 +1305,12 @@ function exportDYMO() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dymo_vinyl_labels.csv'; a.click();
 }
 
-// ── Discogs wantlist ────────────────────────────────────
+// ── Discogs wantlist & collection ────────────────────────
 let discogsConnected = false;
 let wantlistPage = 1;
 let wantlistPages = 1;
+let collectionPage = 1;
+let collectionPages = 1;
 
 async function connectDiscogs() {
   const username = document.getElementById('discogs-username').value.trim();
@@ -1268,6 +1343,7 @@ async function connectDiscogs() {
     document.getElementById('dsc-auth').style.display = 'none';
     document.getElementById('dsc-connected').style.display = '';
     loadWantlist(1);
+    loadDiscogsCollection(1);
   } catch (e) {
     statusEl.textContent = 'Error: ' + e.message;
   }
@@ -1281,6 +1357,9 @@ function disconnectDiscogs() {
   document.getElementById('wantlist-area').innerHTML = '';
   document.getElementById('wantlist-pagination').innerHTML = '';
   document.getElementById('wantlist-status').textContent = '';
+  document.getElementById('discogs-collection-area').innerHTML = '';
+  document.getElementById('discogs-collection-pagination').innerHTML = '';
+  document.getElementById('discogs-collection-status').textContent = '';
 }
 
 async function loadWantlist(page) {
@@ -1349,6 +1428,71 @@ function renderWantlistPagination(pagination) {
     <button class="btn" ${pagination.page <= 1 ? 'disabled' : ''} onclick="loadWantlist(${pagination.page - 1})">← Prev</button>
     <span style="font-size:12px;color:var(--cream-dim)">${pagination.page} / ${pagination.pages}</span>
     <button class="btn" ${pagination.page >= pagination.pages ? 'disabled' : ''} onclick="loadWantlist(${pagination.page + 1})">Next →</button>`;
+}
+
+async function loadDiscogsCollection(page) {
+  const username = document.getElementById('discogs-username').value.trim();
+  const token = getToken();
+  const statusEl = document.getElementById('discogs-collection-status');
+  const area = document.getElementById('discogs-collection-area');
+  statusEl.className = 'status-line loading';
+  statusEl.textContent = `Loading collection${page > 1 ? ` — page ${page}` : ''}`;
+  area.innerHTML = '';
+  document.getElementById('discogs-collection-pagination').innerHTML = '';
+
+  try {
+    const params = new URLSearchParams({ username, token: token || '', page, perPage: 25 });
+    const res = await fetch(`/api/discogs/collection?${params}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    collectionPage = data.pagination.page;
+    collectionPages = data.pagination.pages;
+    statusEl.className = 'status-line';
+    statusEl.textContent = `${data.pagination.items.toLocaleString()} item${data.pagination.items !== 1 ? 's' : ''} in collection`;
+    renderDiscogsCollection(data.items);
+    renderCollectionPagination(data.pagination);
+  } catch (e) {
+    statusEl.className = 'status-line';
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+function renderDiscogsCollection(items) {
+  const area = document.getElementById('discogs-collection-area');
+  if (!items.length) {
+    area.innerHTML = '<div class="empty-state"><span class="big">♪</span>Your collection is empty.</div>';
+    return;
+  }
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    const thumbHtml = item.thumb
+      ? `<img class="rc-thumb" src="${esc(item.thumb)}" alt="" loading="lazy" />`
+      : `<div class="rc-thumb-placeholder">♪</div>`;
+    const genre = item.styles || item.genre;
+    card.innerHTML = `
+      <div class="rc-left">
+        ${thumbHtml}
+        <div class="rc-info">
+          <div class="rc-title">${esc(item.artist)} — ${esc(item.album)} <span style="font-weight:300;color:var(--muted)">(${item.year || '—'})</span></div>
+          <div class="rc-meta">${esc(genre || '')}${item.label ? ' · ' + esc(item.label) : ''}</div>
+          <div class="rc-tracks">${esc(item.formats || '')}</div>
+        </div>
+      </div>
+      <div class="rc-right">
+        ${item.discogsUrl ? `<a class="rc-discogs-link" href="${esc(item.discogsUrl)}" target="_blank" onclick="event.stopPropagation()">↗ Discogs</a>` : ''}
+      </div>`;
+    area.appendChild(card);
+  });
+}
+
+function renderCollectionPagination(pagination) {
+  const el = document.getElementById('discogs-collection-pagination');
+  if (pagination.pages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <button class="btn" ${pagination.page <= 1 ? 'disabled' : ''} onclick="loadDiscogsCollection(${pagination.page - 1})">← Prev</button>
+    <span style="font-size:12px;color:var(--cream-dim)">${pagination.page} / ${pagination.pages}</span>
+    <button class="btn" ${pagination.page >= pagination.pages ? 'disabled' : ''} onclick="loadDiscogsCollection(${pagination.page + 1})">Next →</button>`;
 }
 
 async function addFromWantlist(item, card) {
@@ -1522,26 +1666,109 @@ async function detectDymoPrinter() {
   }
 }
 
-function buildLabelXml(artist, album, tracks, partLabel, wMm, hMm) {
+function getPaperName(wMm, hMm) {
+  const names = {
+    '54x101': '30323 Large Address',
+    '28x89':  '30252 Address',
+    '54x54':  '30257 Large Multipurpose',
+    '25x54':  '30336 Small Multipurpose',
+    '19x51':  '30332 Small Address',
+    '57x101': '30370 Extra Large Address',
+  };
+  return names[`${wMm}x${hMm}`] || `${wMm} x ${hMm}`;
+}
+
+function getLabelLayout(wMm, hMm) {
+  // Max tracks per label before splitting to a new label
+  let maxTracks;
+  if      (hMm >= 90 && wMm >= 50) maxTracks = 5;  // 54×101, 57×101
+  else if (hMm >= 80)               maxTracks = 4;  // 28×89
+  else if (hMm >= 50)               maxTracks = 3;  // 54×54
+  else if (hMm >= 42)               maxTracks = 2;  // 25×54
+  else                              maxTracks = 1;  // 19×51
+
+  // Show per-track BPM/key/duration sub-line only when there's width for it
+  const showMeta = wMm >= 26;
+
+  // Print font sizes (pt) — scaled to label width
+  let fonts;
+  if (wMm >= 50) {
+    fonts = { artist: 11, album: 9, divider: 7, title: 8, meta: 7, footer: 7 };
+  } else if (wMm >= 26) {
+    fonts = { artist: 9, album: 8, divider: 6, title: 7, meta: 6, footer: 6 };
+  } else {
+    fonts = { artist: 7, album: 6, divider: 5, title: 6, meta: 0, footer: 5 };
+  }
+
+  return { maxTracks, showMeta, fonts };
+}
+
+function buildLabelXml(info, tracks, partLabel, wMm, hMm) {
   const toTwips = mm => Math.round(mm * 56.693);
   const W = toTwips(wMm);
   const H = toTwips(hMm);
   const pad = Math.round(Math.min(W, H) * 0.05);
 
-  const titleLine = artist + ' \u2014 ' + album + (partLabel ? ' ' + partLabel : '');
-  const trackLines = tracks.map(t => {
-    const pos = t.position ? t.position + '. ' : '';
-    const meta = [t.bpm ? t.bpm + ' BPM' : '', t.key || '', t.duration || ''].filter(Boolean).join(' \u00b7 ');
-    return pos + t.title + (meta ? '  ' + meta : '');
-  });
-  const rawText = [titleLine, '\u2500'.repeat(18), ...trackLines].join('\n');
-  const xmlText = rawText
+  const { fonts, showMeta } = getLabelLayout(wMm, hMm);
+  const paperName = getPaperName(wMm, hMm);
+
+  const xmlEsc = s => String(s || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '&#xA;');
+    .replace(/>/g, '&gt;');
 
-  return `<?xml version="1.0" encoding="utf-8"?><DieCutLabel Version="8.0" Units="twips"><PaperOrientation>Portrait</PaperOrientation><Id>Address</Id><PaperName>30252 Address</PaperName><DrawCommands><RoundRectangle X="0" Y="0" Width="${W}" Height="${H}" Rx="180" Ry="180" /></DrawCommands><ObjectInfo><TextObject><Name>LABEL</Name><ForeColor Alpha="255" Red="0" Green="0" Blue="0" /><BackColor Alpha="0" Red="255" Green="255" Blue="255" /><LinkedObjectName></LinkedObjectName><Rotation>Rotation0</Rotation><IsMirrored>False</IsMirrored><IsVariable>False</IsVariable><HorizontalAlignment>Left</HorizontalAlignment><VerticalAlignment>Top</VerticalAlignment><TextFitMode>ShrinkToFit</TextFitMode><UseFullFontHeight>True</UseFullFontHeight><Verticalized>False</Verticalized><StyledText><Element><String>${xmlText}</String><Attributes><Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" StrikeThrough="False" /><ForeColor Alpha="255" Red="0" Green="0" Blue="0" /></Attributes></Element></StyledText></TextObject><ObjectLayout><DockMode>None</DockMode><Absolute><X>${pad}</X><Y>${pad}</Y><Width>${W - pad * 2}</Width><Height>${H - pad * 2}</Height></Absolute></ObjectLayout></ObjectInfo></DieCutLabel>`;
+  const elem = (text, size, bold = false, last = false) =>
+    `<Element><String>${xmlEsc(text)}${last ? '' : '&#xA;'}</String>` +
+    `<Attributes><Font Family="Arial" Size="${size}" Bold="${bold ? 'True' : 'False'}" ` +
+    `Italic="False" Underline="False" StrikeThrough="False" />` +
+    `<ForeColor Alpha="255" Red="0" Green="0" Blue="0" /></Attributes></Element>`;
+
+  const divider = '\u2500'.repeat(wMm >= 50 ? 20 : wMm >= 26 ? 14 : 10);
+  const albumLine = info.album + (partLabel ? ` ${partLabel}` : '');
+
+  const parts = [];
+  parts.push(elem(info.artist, fonts.artist, true));
+  parts.push(elem(albumLine, fonts.album));
+  parts.push(elem(divider, fonts.divider));
+
+  for (const t of tracks) {
+    const pos = t.position ? `${t.position}. ` : '';
+    parts.push(elem(pos + t.title, fonts.title));
+    if (showMeta) {
+      const meta = [t.bpm ? `${t.bpm} BPM` : '', t.key || '', t.duration || ''].filter(Boolean).join(' \u00b7 ');
+      if (meta) parts.push(elem(meta, fonts.meta));
+    }
+  }
+
+  parts.push(elem(divider, fonts.divider));
+
+  const yearGenre = [info.year, info.genre].filter(Boolean).join(' \u00b7 ');
+  if (yearGenre && info.label) {
+    parts.push(elem(yearGenre, fonts.footer));
+    parts.push(elem(info.label, fonts.footer, false, true));
+  } else if (yearGenre) {
+    parts.push(elem(yearGenre, fonts.footer, false, true));
+  } else if (info.label) {
+    parts.push(elem(info.label, fonts.footer, false, true));
+  }
+
+  const styledText = `<StyledText>${parts.join('')}</StyledText>`;
+
+  return `<?xml version="1.0" encoding="utf-8"?><DieCutLabel Version="8.0" Units="twips">` +
+    `<PaperOrientation>Portrait</PaperOrientation><Id>Address</Id>` +
+    `<PaperName>${paperName}</PaperName>` +
+    `<DrawCommands><RoundRectangle X="0" Y="0" Width="${W}" Height="${H}" Rx="180" Ry="180" /></DrawCommands>` +
+    `<ObjectInfo><TextObject><Name>LABEL</Name>` +
+    `<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />` +
+    `<BackColor Alpha="0" Red="255" Green="255" Blue="255" />` +
+    `<LinkedObjectName></LinkedObjectName><Rotation>Rotation0</Rotation>` +
+    `<IsMirrored>False</IsMirrored><IsVariable>False</IsVariable>` +
+    `<HorizontalAlignment>Left</HorizontalAlignment><VerticalAlignment>Top</VerticalAlignment>` +
+    `<TextFitMode>ShrinkToFit</TextFitMode><UseFullFontHeight>True</UseFullFontHeight>` +
+    `<Verticalized>False</Verticalized>${styledText}</TextObject>` +
+    `<ObjectLayout><DockMode>None</DockMode><Absolute>` +
+    `<X>${pad}</X><Y>${pad}</Y><Width>${W - pad * 2}</Width><Height>${H - pad * 2}</Height>` +
+    `</Absolute></ObjectLayout></ObjectInfo></DieCutLabel>`;
 }
 
 async function printDymoLabels() {
@@ -1559,8 +1786,8 @@ async function printDymoLabels() {
     seen.get(key).push(t);
   }
 
-  const TRACKS_PER_STICKER = 5;
   const { w, h } = getLabelDimensions();
+  const { maxTracks } = getLabelLayout(w, h);
   const printStatusEl = document.getElementById('dymo-print-status');
   printStatusEl.textContent = 'Printing\u2026';
 
@@ -1568,10 +1795,10 @@ async function printDymoLabels() {
   try {
     for (const { info: a, tracks } of albums) {
       const chunks = [];
-      for (let i = 0; i < tracks.length; i += TRACKS_PER_STICKER) chunks.push(tracks.slice(i, i + TRACKS_PER_STICKER));
+      for (let i = 0; i < tracks.length; i += maxTracks) chunks.push(tracks.slice(i, i + maxTracks));
       for (let ci = 0; ci < chunks.length; ci++) {
         const partLabel = chunks.length > 1 ? `(${ci + 1}/${chunks.length})` : '';
-        const xml = buildLabelXml(a.artist, a.album, chunks[ci], partLabel, w, h);
+        const xml = buildLabelXml(a, chunks[ci], partLabel, w, h);
         const label = dymo.label.framework.openLabelXml(xml);
         label.print(detectedPrinter.name);
         count++;
