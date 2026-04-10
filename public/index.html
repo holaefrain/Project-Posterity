@@ -343,6 +343,8 @@
     background: var(--surface2);
   }
   .tag.added { border-color: color-mix(in srgb, var(--green) 40%, transparent); color: var(--green); background: color-mix(in srgb, var(--green) 8%, transparent); }
+  .tag.removable { cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
+  .tag.removable:hover { border-color: color-mix(in srgb, #c0392b 50%, transparent); color: #e05a4e; background: color-mix(in srgb, #c0392b 10%, transparent); }
 
   /* Collection table */
   .table-container {
@@ -351,7 +353,7 @@
     overflow: auto;
     margin-bottom: 20px;
   }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  table { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
   thead th {
     background: var(--surface2);
     padding: 8px 8px;
@@ -452,25 +454,25 @@
     border-radius: 6px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 6px;
+    justify-content: flex-start;
+    gap: 3px;
     background: #fff;
     color: #111;
     font-family: 'Arial', sans-serif;
     overflow: hidden;
     box-sizing: border-box;
   }
-  .dymo-label .dl-artist { font-size: 13px; font-weight: 700; word-break: break-word; }
-  .dymo-label .dl-album { font-size: 11px; word-break: break-word; }
+  .dymo-label .dl-artist { font-size: 13px; font-weight: 700; word-break: break-word; line-height: 1.2; }
+  .dymo-label .dl-album { font-size: 11px; word-break: break-word; line-height: 1.2; }
   .dymo-label .dl-track { font-size: 10px; color: #555; word-break: break-word; }
-  .dymo-label .dl-meta { font-size: 9px; color: #777; display: flex; flex-direction: column; gap: 3px; }
-  .dymo-label .dl-divider { height: 1px; background: #ddd; margin: 4px 0; }
-  .dymo-label .dl-tracklist { display: flex; flex-direction: column; gap: 4px; flex: 1; justify-content: center; }
+  .dymo-label .dl-meta { font-size: 9px; color: #777; display: flex; flex-direction: column; gap: 2px; }
+  .dymo-label .dl-divider { height: 1px; background: #ddd; margin: 2px 0; }
+  .dymo-label .dl-tracklist { display: flex; flex-direction: column; gap: 3px; }
   .dymo-label .dl-track-row { display: flex; flex-direction: column; gap: 1px; font-size: 9px; }
-  .dymo-label .dl-track-title { display: flex; align-items: baseline; gap: 4px; }
-  .dymo-label .dl-pos { color: #aaa; min-width: 14px; flex-shrink: 0; }
-  .dymo-label .dl-track { color: #333; flex: 1; word-break: break-word; }
-  .dymo-label .dl-track-meta { font-size: 8px; color: #aaa; padding-left: 18px; display: flex; gap: 6px; }
+  .dymo-label .dl-track-title { display: flex; align-items: baseline; gap: 3px; }
+  .dymo-label .dl-pos { color: #aaa; min-width: 12px; flex-shrink: 0; }
+  .dymo-label .dl-track { color: #333; flex: 1; word-break: break-word; line-height: 1.2; }
+  .dymo-label .dl-track-meta { font-size: 8px; color: #aaa; padding-left: 15px; display: flex; gap: 4px; }
 
   /* Discogs section */
   .discogs-setup {
@@ -518,6 +520,24 @@
     color: var(--amber);
     font-size: 11px;
   }
+  .inline-key-select {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--amber);
+    font-size: 11px;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+    padding: 0 2px;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .inline-key-select:focus { border-bottom-color: var(--amber); }
+  .inline-key-select option { background: var(--surface2); color: var(--cream); }
   .inline-edit, .inline-num, .inline-key, .inline-pos, .inline-dur, .inline-year {
     background: transparent;
     border: none;
@@ -1060,6 +1080,7 @@ function addAlbum(r, card) {
   card.classList.add('added');
   card.onclick = null;
 
+  const albumId = `${Date.now()}-${Math.random()}`;
   const startIndex = collection.length;
 
   if (r.tracks && r.tracks.length) {
@@ -1076,7 +1097,8 @@ function addAlbum(r, card) {
         bpm: '',
         key: '',
         discogsId: r.discogsId || '',
-        _enriching: true
+        _enriching: true,
+        _albumId: albumId
       });
     });
   } else {
@@ -1092,17 +1114,18 @@ function addAlbum(r, card) {
       bpm: '',
       key: '',
       discogsId: r.discogsId || '',
-      _enriching: true
+      _enriching: true,
+      _albumId: albumId
     });
   }
 
   updateCount();
 
   // Kick off Claude enrichment in background
-  enrichAlbum(r, startIndex, tag);
+  enrichAlbum(r, startIndex, tag, card, albumId);
 }
 
-async function enrichAlbum(r, startIndex, tagEl) {
+async function enrichAlbum(r, startIndex, tagEl, card, albumId) {
   const tracks = r.tracks && r.tracks.length
     ? r.tracks
     : [{ title: r.album }];
@@ -1120,30 +1143,89 @@ async function enrichAlbum(r, startIndex, tagEl) {
       const idx = startIndex + i;
       if (collection[idx]) {
         collection[idx].bpm = enriched.bpm || '';
-        collection[idx].key = enriched.key || '';
+        collection[idx].key = normalizeKey(enriched.key || '');
         collection[idx]._enriching = false;
       }
     });
 
     tagEl.textContent = '✓ Added';
-    tagEl.className = 'tag added';
-
-    // Refresh collection table if it's visible
-    if (document.getElementById('tab-collection').classList.contains('active')) {
-      renderCollection();
-    }
+    tagEl.className = 'tag added removable';
+    enableRemove(card, tagEl, albumId, r);
+    renderCollection();
   } catch (e) {
     console.warn('Enrichment failed:', e.message);
-    // Mark tracks as no longer enriching even on failure
     for (let i = startIndex; i < startIndex + tracks.length; i++) {
       if (collection[i]) collection[i]._enriching = false;
     }
     tagEl.textContent = '✓ Added';
-    tagEl.className = 'tag added';
-    if (document.getElementById('tab-collection').classList.contains('active')) {
-      renderCollection();
+    tagEl.className = 'tag added removable';
+    enableRemove(card, tagEl, albumId, r);
+    renderCollection();
+  }
+}
+
+function enableRemove(card, tag, albumId, r) {
+  const onEnter = () => { tag.textContent = '× Remove'; };
+  const onLeave = () => { tag.textContent = '✓ Added'; };
+  tag.addEventListener('mouseenter', onEnter);
+  tag.addEventListener('mouseleave', onLeave);
+  card.onclick = () => {
+    collection = collection.filter(t => t._albumId !== albumId);
+    updateCount();
+    renderCollection();
+    tag.removeEventListener('mouseenter', onEnter);
+    tag.removeEventListener('mouseleave', onLeave);
+    tag.textContent = '+ Add';
+    tag.className = 'tag';
+    card.classList.remove('added');
+    card.onclick = () => addAlbum(r, card);
+  };
+}
+
+// ── Collection helpers ────────────────────────────────────
+// Normalize a raw key string to the canonical "9A — E minor" format.
+// Handles server format "9A - E minor" (hyphen), plain codes "9A",
+// plain names "E minor" / "E Minor", and already-normalized em-dash values.
+function normalizeKey(raw) {
+  if (!raw) return '';
+  const s = raw.trim();
+
+  // Server returns "CODE - name" with a regular hyphen — extract the code
+  const dashMatch = s.match(/^(\d{1,2}[AB])\s*[-–—]\s*(.+)$/i);
+  if (dashMatch) {
+    const code = dashMatch[1].toUpperCase();
+    const entry = CAMELOT.find(([c]) => c === code);
+    if (entry) return `${entry[0]} — ${entry[1]}`;
+  }
+
+  const sl = s.toLowerCase();
+  for (const [code, name] of CAMELOT) {
+    if (sl === code.toLowerCase() || sl === name.toLowerCase()) {
+      return `${code} — ${name}`;
     }
   }
+  return raw; // keep as-is if unrecognized
+}
+
+function keySelect(i, val) {
+  const normalized = normalizeKey(val);
+  const opts = CAMELOT.map(([code, name]) => {
+    const v = `${code} — ${name}`;
+    const sel = (normalized === v) ? ' selected' : '';
+    return `<option value="${v}"${sel}>${code} — ${name}</option>`;
+  }).join('');
+  return `<select class="inline-key-select" onchange="collection[${i}].key=this.value"><option value="">—</option>${opts}</select>`;
+}
+
+function setDuration(i, input) {
+  // Allow digits and colon only; enforce M:SS or MM:SS (no leading zero on minutes)
+  let v = input.value.replace(/[^0-9:]/g, '');
+  // Strip leading zero from minute part
+  v = v.replace(/^0+(\d)/, '$1');
+  // Limit total length to 5 chars (e.g. 59:59)
+  if (v.length > 5) v = v.slice(0, 5);
+  input.value = v;
+  collection[i].duration = v;
 }
 
 // ── Collection ───────────────────────────────────────────
@@ -1155,15 +1237,15 @@ function renderCollection() {
   }
   const rows = collection.map((t, i) => {
     if (t._enriching) {
-      return `<tr>
-        <td><input class="inline-edit" value="${esc(t.artist||'')}" oninput="collection[${i}].artist=this.value" /></td>
-        <td><input class="inline-edit" value="${esc(t.album||'')}" oninput="collection[${i}].album=this.value" /></td>
-        <td><input class="inline-edit" value="${esc(t.title||'')}" oninput="collection[${i}].title=this.value" /></td>
-        <td><input class="inline-year" value="${esc(t.year||'')}" oninput="collection[${i}].year=this.value" /></td>
-        <td><input class="inline-edit" value="${esc(t.genre||'')}" oninput="collection[${i}].genre=this.value" /></td>
-        <td><input class="inline-edit" value="${esc(t.label||'')}" oninput="collection[${i}].label=this.value" /></td>
-        <td><input class="inline-pos" placeholder="Pos" value="${esc(t.position||'')}" oninput="collection[${i}].position=this.value" /></td>
-        <td><input class="inline-dur" placeholder="0:00" value="${esc(t.duration||'')}" oninput="collection[${i}].duration=this.value" /></td>
+      return `<tr style="opacity:0.6">
+        <td style="color:var(--cream)">${esc(t.artist||'')}</td>
+        <td style="color:var(--cream)">${esc(t.album||'')}</td>
+        <td style="color:var(--cream)">${esc(t.title||'')}</td>
+        <td style="color:var(--cream-dim)">${esc(t.year||'')}</td>
+        <td style="color:var(--cream-dim)">${esc(t.genre||'')}</td>
+        <td style="color:var(--cream-dim)">${esc(t.label||'')}</td>
+        <td style="color:var(--cream-dim);text-align:center">${esc(t.position||'')}</td>
+        <td style="color:var(--cream-dim);text-align:center">${esc(t.duration||'')}</td>
         <td class="enriching-cell">…</td>
         <td class="enriching-cell">…</td>
         <td><button class="del-btn" onclick="removeTrack(${i})">×</button></td>
@@ -1177,9 +1259,9 @@ function renderCollection() {
       <td><input class="inline-edit" value="${esc(t.genre||'')}" oninput="collection[${i}].genre=this.value" /></td>
       <td><input class="inline-edit" value="${esc(t.label||'')}" oninput="collection[${i}].label=this.value" /></td>
       <td><input class="inline-pos" placeholder="Pos" value="${esc(t.position||'')}" oninput="collection[${i}].position=this.value" /></td>
-      <td><input class="inline-dur" placeholder="0:00" value="${esc(t.duration||'')}" oninput="collection[${i}].duration=this.value" /></td>
+      <td><input class="inline-dur" placeholder="M:SS" value="${esc(t.duration||'')}" oninput="setDuration(${i},this)" /></td>
       <td><input class="inline-num" type="number" min="1" max="999" placeholder="BPM" value="${t.bpm||''}" oninput="collection[${i}].bpm=this.value" /></td>
-      <td><input class="inline-key" type="text" list="camelot-list" placeholder="Key" value="${esc(t.key||'')}" oninput="collection[${i}].key=this.value" /></td>
+      <td>${keySelect(i, t.key||'')}</td>
       <td><button class="del-btn" onclick="removeTrack(${i})">×</button></td>
     </tr>`;
   }).join('');
@@ -1187,16 +1269,16 @@ function renderCollection() {
     <div class="table-container">
       <table>
         <thead><tr>
-          <th style="width:150px">Artist<span class="col-resize"></span></th>
-          <th style="width:160px">Album<span class="col-resize"></span></th>
-          <th style="width:160px">Track<span class="col-resize"></span></th>
-          <th style="width:48px">Year<span class="col-resize"></span></th>
-          <th style="width:110px">Genre<span class="col-resize"></span></th>
-          <th style="width:120px">Label<span class="col-resize"></span></th>
-          <th style="width:44px">Pos<span class="col-resize"></span></th>
-          <th style="width:62px">Dur<span class="col-resize"></span></th>
-          <th style="width:54px">BPM<span class="col-resize"></span></th>
-          <th style="width:80px">Key<span class="col-resize"></span></th>
+          <th style="width:180px">Artist<span class="col-resize"></span></th>
+          <th style="width:200px">Album<span class="col-resize"></span></th>
+          <th style="width:200px">Track<span class="col-resize"></span></th>
+          <th style="width:52px">Year<span class="col-resize"></span></th>
+          <th style="width:130px">Genre<span class="col-resize"></span></th>
+          <th style="width:140px">Label<span class="col-resize"></span></th>
+          <th style="width:48px">Pos<span class="col-resize"></span></th>
+          <th style="width:68px">Dur<span class="col-resize"></span></th>
+          <th style="width:58px">BPM<span class="col-resize"></span></th>
+          <th style="width:130px">Key<span class="col-resize"></span></th>
           <th style="width:28px"></th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -1297,28 +1379,29 @@ function renderExport() {
       if (showLabelText && a.label) lineDefs.push({ type: 'footer' });
 
       const layout = getLabelLayout(w, h);
-      const previewFonts = getLabelFontSizesForLines(w, h, lineDefs, layout);
-      const pxScale = 1.33;
+      // Preview uses pixel-based sizing; print uses pt-based sizing. Separate functions, no shared scale.
+      const pf = getPreviewFontSizes(w, h, lineDefs, layout);
+      const padPx = Math.round(Math.max(2, Math.min(w, h) * 0.04) * SCALE);
 
       return `
-      <div class="dymo-label" style="width:${pw}px;height:${ph}px;padding:${Math.round(ph*0.05)}px ${Math.round(pw*0.07)}px">
-        <div class="dl-artist" style="font-size:${Math.round(previewFonts.artist * pxScale)}px">${esc(a.artist)}</div>
-        <div class="dl-album">${esc(a.album)}${chunks.length > 1 ? ` <span style="font-weight:300">(${ci + 1}/${chunks.length})</span>` : ''}</div>
+      <div class="dymo-label" style="width:${pw}px;height:${ph}px;padding:${padPx}px">
+        <div class="dl-artist" style="font-size:${pf.artist}px">${esc(a.artist)}</div>
+        <div class="dl-album" style="font-size:${pf.album}px">${esc(a.album)}${chunks.length > 1 ? ` <span style="font-weight:300">(${ci + 1}/${chunks.length})</span>` : ''}</div>
         <div class="dl-divider"></div>
         <div class="dl-tracklist">
           ${chunk.map(t => {
             const meta = [showBpm && t.bpm ? `${t.bpm} BPM` : '', showKey ? (t.key || '') : '', showDuration ? (t.duration || '') : ''].filter(Boolean).join(' · ');
             return `<div class="dl-track-row">
-              <div class="dl-track-title" style="font-size:${Math.round(previewFonts.title * pxScale)}px">
+              <div class="dl-track-title" style="font-size:${pf.title}px">
                 ${t.position ? `<span class="dl-pos">${esc(t.position)}</span>` : ''}
                 <span class="dl-track">${esc(t.title)}</span>
               </div>
-              ${showMeta && meta ? `<div class="dl-track-meta" style="font-size:${Math.round(previewFonts.meta * pxScale)}px">${esc(meta)}</div>` : ''}
+              ${showMeta && meta ? `<div class="dl-track-meta" style="font-size:${pf.meta}px">${esc(meta)}</div>` : ''}
             </div>`;
           }).join('')}
         </div>
         <div class="dl-divider"></div>
-        <div class="dl-meta" style="font-size:${Math.round(previewFonts.footer * pxScale)}px">
+        <div class="dl-meta" style="font-size:${pf.footer}px">
           ${(showYear || showGenre) ? `<span>${[showYear ? a.year : '', showGenre ? esc(a.genre) : ''].filter(Boolean).join(' · ')}</span>` : ''}
           ${showLabelText && a.label ? `<span>${esc(a.label)}</span>` : ''}
         </div>
@@ -1690,7 +1773,7 @@ async function detectDymoPrinter() {
       try {
         const info = dymo.label.framework.getPrinterInfo(detectedPrinter.name);
         const labelName = info?.installedLabel?.name || '';
-        const partMap = { '30252': '28x89', '30323': '54x101', '30257': '54x54', '30336': '25x54', '30332': '19x51', '30370': '57x101' };
+        const partMap = { '30252': '29x89', '30323': '54x102', '30257': '54x54', '30336': '25x54', '30332': '19x51', '30370': '59x102' };
         for (const [part, val] of Object.entries(partMap)) {
           if (labelName.includes(part)) {
             document.getElementById('dymo-size').value = val;
@@ -1727,14 +1810,15 @@ function getPaperName(wMm, hMm) {
 }
 
 function getLabelLayout(wMm, hMm) {
-  // Max tracks per label before splitting to a new label
+  // Max tracks per label before splitting to a new label.
+  // These values are tuned for the properly-scaled font sizes (post MM_TO_PT fix).
   let maxTracks;
-  if      (hMm >= 140) maxTracks = 8;  // 102x152
-  else if (hMm >= 100 && wMm >= 50) maxTracks = 6;  // 54x102, 59x102
-  else if (hMm >= 85)               maxTracks = 5;  // 29x89
-  else if (hMm >= 50)               maxTracks = 4;  // 25x54, 54x54
-  else if (hMm >= 45)               maxTracks = 3;  // 19x51
-  else                              maxTracks = 2;  // 25x25
+  if      (hMm >= 140) maxTracks = 6;  // 102x152 large shipping
+  else if (hMm >= 100 && wMm >= 50) maxTracks = 4;  // 54x102 (30323), 59x102 (30370)
+  else if (hMm >= 85)               maxTracks = 3;  // 29x89 (30252)
+  else if (hMm >= 50)               maxTracks = 2;  // 25x54 (30336), 54x54 (30257)
+  else if (hMm >= 45)               maxTracks = 2;  // 19x51 (30332)
+  else                              maxTracks = 1;  // 25x25
 
   // Show per-track BPM/key/duration sub-line only when there's width for it
   const showMeta = wMm >= 25;
@@ -1752,31 +1836,59 @@ function getLabelLayout(wMm, hMm) {
   return { maxTracks, showMeta, fonts };
 }
 
-function getLabelFontSizesForLines(wMm, hMm, lineDefs, layout) {
-  const padMm = Math.min(wMm, hMm) * 0.03;
-  const innerHeight = Math.max(1, hMm - padMm * 2);
-  const typeFactor = {
-    artist: 1.35,
-    album: 1.2,
-    divider: 0.9,
-    title: 1.15,
-    meta: 1.0,
-    footer: 1.05
+// Returns font sizes in PIXELS for the HTML label preview.
+// Works purely in the preview box's pixel space so it never affects print scaling.
+function getPreviewFontSizes(wMm, hMm, lineDefs, layout) {
+  const padPx = Math.round(Math.max(2, Math.min(wMm, hMm) * 0.04) * SCALE);
+  const innerHeightPx = Math.round(hMm * SCALE) - padPx * 2;
+  const PX_PER_PT = SCALE * 25.4 / 72; // pt → preview px (≈ 0.847 for SCALE=2.4)
+  const typeFactor = { artist: 1.35, album: 1.2, divider: 0.9, title: 1.15, meta: 1.0, footer: 1.05 };
+
+  // Base sizes in px (converted from the layout's pt values at preview resolution)
+  const base = {};
+  for (const k of Object.keys(layout.fonts)) base[k] = layout.fonts[k] * PX_PER_PT;
+
+  const totalHeight = lineDefs.reduce((sum, line) => {
+    return sum + (base[line.type] || base.title) * (typeFactor[line.type] || 1);
+  }, 0);
+
+  // Never scale UP. Base sizes (PX_PER_PT × layout pt values) are already tuned for the
+  // preview box. Upscaling causes long track titles to wrap multiple lines and overflow.
+  // Downscaling still happens if there are more lines than the box can fit.
+  const scale = Math.min(1.0, innerHeightPx / Math.max(totalHeight, 1));
+  return {
+    artist: Math.max(6,  Math.round(base.artist * scale)),
+    album:  Math.max(6,  Math.round(base.album  * scale)),
+    divider:Math.max(4,  Math.round(base.divider * scale)),
+    title:  Math.max(5,  Math.round(base.title   * scale)),
+    meta:   Math.max(4,  Math.round(base.meta    * scale)),
+    footer: Math.max(4,  Math.round(base.footer  * scale))
   };
+}
+
+// Returns font sizes in POINTS for the physical DYMO print.
+// Uses MM_TO_PT so the text actually fills the label at 300 dpi.
+function getLabelFontSizesForLines(wMm, hMm, lineDefs, layout) {
+  const MM_TO_PT = 72 / 25.4; // 1mm = 2.8346pt
+  const topPadMm = Math.max(9, Math.min(wMm, hMm) * 0.05);
+  const bottomPadMm = Math.max(1, Math.min(wMm, hMm) * 0.02);
+  const innerHeight = Math.max(1, hMm - topPadMm - bottomPadMm);
+  const typeFactor = { artist: 1.35, album: 1.2, divider: 0.9, title: 1.15, meta: 1.0, footer: 1.05 };
 
   const totalHeight = lineDefs.reduce((sum, line) => {
     const font = layout.fonts[line.type] || layout.fonts.title;
     return sum + font * (typeFactor[line.type] || 1);
   }, 0);
 
-  const scale = Math.min(1.4, Math.max(0.65, innerHeight / Math.max(totalHeight, 1)));
+  const scale = Math.min(2.5, Math.max(0.65, (innerHeight * MM_TO_PT) / Math.max(totalHeight, 1)));
+  console.log(`[FontCalc] ${wMm}×${hMm}mm | topPad=${topPadMm.toFixed(2)}mm bottomPad=${bottomPadMm.toFixed(2)}mm | innerH=${innerHeight.toFixed(2)}mm | totalH=${totalHeight.toFixed(1)}pt | scale=${scale.toFixed(3)}`);
   return {
     artist: Math.max(6, Math.round(layout.fonts.artist * scale)),
-    album: Math.max(6, Math.round(layout.fonts.album * scale)),
-    divider: Math.max(5, Math.round(layout.fonts.divider * scale)),
-    title: Math.max(6, Math.round(layout.fonts.title * scale)),
-    meta: Math.max(5, Math.round(layout.fonts.meta * scale)),
-    footer: Math.max(5, Math.round(layout.fonts.footer * scale))
+    album:  Math.max(6, Math.round(layout.fonts.album  * scale)),
+    divider:Math.max(5, Math.round(layout.fonts.divider * scale)),
+    title:  Math.max(6, Math.round(layout.fonts.title   * scale)),
+    meta:   Math.max(5, Math.round(layout.fonts.meta    * scale)),
+    footer: Math.max(5, Math.round(layout.fonts.footer  * scale))
   };
 }
 
@@ -1801,11 +1913,16 @@ function getLabelId(wMm, hMm) {
   const key = `${wMm}x${hMm}`;
   return { '54x102': 'Shipping', '29x89': 'Address', '54x54': 'Multipurpose', '25x54': 'Small30336', '19x51': 'ReturnAddress', '59x102': 'LargeShipping', '25x25': 'SmallMultipurpose', '102x152': 'LargeShipping' }[key] || 'Shipping';
 }
-
+// Pritning Formats: https://labelwriter.com/software/dymo-connect/label-xml-specification/#label-format-specification
 function buildLabelXml(info, tracks, partLabel, wMm, hMm, opts) {
   const toIn = mm => +(mm / 25.4).toFixed(6); // mm to inches
   const wIn = toIn(wMm), hIn = toIn(hMm);
-  const padIn = Math.max(toIn(1), toIn(Math.min(wMm, hMm) * 0.02)); // Minimum 1mm padding for label margins
+  const sidePadMm = Math.max(1, Math.min(wMm, hMm) * 0.02);
+  const topPadMm = Math.max(9, Math.min(wMm, hMm) * 0.05);
+  const bottomPadMm = Math.max(1, Math.min(wMm, hMm) * 0.02);
+  const sidePadIn = toIn(sidePadMm);
+  const topPadIn = toIn(topPadMm);
+  const bottomPadIn = toIn(bottomPadMm);
 
   const resolved = opts || getLabelLayout(wMm, hMm);
   const { fonts, showMeta } = resolved;
@@ -1846,6 +1963,30 @@ function buildLabelXml(info, tracks, partLabel, wMm, hMm, opts) {
   if (labelLine) lineDefs.push({ type: 'footer', text: labelLine });
 
   const scaledFonts = getLabelFontSizesForLines(wMm, hMm, lineDefs, resolved);
+  console.log(`[Print] ${wMm}×${hMm}mm | ${lineDefs.length} lines | scaled fonts (pt):`, scaledFonts);
+
+  const wrapText = (text, size) => {
+    const usableMm = Math.max(1, wMm - sidePadMm * 2);
+    const avgCharMm = Math.max(0.9, size * 0.16);
+    const maxChars = Math.max(10, Math.floor(usableMm / avgCharMm));
+    const words = String(text || '').split(' ');
+    const lines = [];
+    let current = '';
+
+    for (const word of words) {
+      if (!current) { current = word; continue; }
+      const next = `${current} ${word}`;
+      if (next.length <= maxChars) { current = next; continue; }
+      lines.push(current);
+      current = word;
+      while (current.length > maxChars) {
+        lines.push(current.slice(0, maxChars));
+        current = current.slice(maxChars);
+      }
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [''];
+  };
 
   const span = (text, size, bold = false) =>
     `<LineTextSpan><TextSpan><Text>${xmlEsc(text)}</Text>` +
@@ -1854,9 +1995,13 @@ function buildLabelXml(info, tracks, partLabel, wMm, hMm, opts) {
     `<IsUnderline>False</IsUnderline><FontBrush>${black}</FontBrush>` +
     `</FontInfo></TextSpan></LineTextSpan>`;
 
-  const lines = lineDefs.map(def => span(def.text, scaledFonts[def.type] || fonts.title, def.bold));
+  const lines = lineDefs.flatMap(def => {
+    const size = scaledFonts[def.type] || scaledFonts.title;
+    if (def.type === 'divider') return [span(def.text, size, def.bold)];
+    return wrapText(def.text, size).map(line => span(line, size, def.bold));
+  });
 
-  const tX = padIn, tY = padIn, tW = +(wIn - padIn * 2).toFixed(6), tH = +(hIn - padIn * 2).toFixed(6);
+  const tX = sidePadIn, tY = topPadIn, tW = +(wIn - sidePadIn * 2).toFixed(6), tH = +(hIn - topPadIn - bottomPadIn).toFixed(6);
 
   const inner = `<DYMOLabel Version="3">` +
     `<Description>DYMO Label</Description><Orientation>Portrait</Orientation>` +
